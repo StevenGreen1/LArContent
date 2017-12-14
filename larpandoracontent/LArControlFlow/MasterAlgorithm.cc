@@ -16,6 +16,8 @@
 
 #include "larpandoracontent/LArHelpers/LArClusterHelper.h"
 #include "larpandoracontent/LArHelpers/LArFileHelper.h"
+#include "larpandoracontent/LArHelpers/LArMCParticleHelper.h"
+#include "larpandoracontent/LArHelpers/LArPcaHelper.h"
 #include "larpandoracontent/LArHelpers/LArPfoHelper.h"
 
 #include "larpandoracontent/LArObjects/LArCaloHit.h"
@@ -31,6 +33,13 @@ namespace lar_content
 {
 
 MasterAlgorithm::MasterAlgorithm() :
+    m_fileName("SliceAnalysis.root"),
+    m_treeName("SliceAnalysisTree"),
+    m_eventNumber(0),
+    m_trueMomentum(-1.f),
+    m_momentumAcceptance(20.f),
+    m_beamTPCIntersection(CartesianVector(0.f, 0.f, 0.f)),
+    m_beamDirection(CartesianVector(0.f, 0.f, 0.f)),
     m_shouldRunAllHitsCosmicReco(true),
     m_shouldRunStitching(true),
     m_shouldRunCosmicHitRemoval(true),
@@ -38,7 +47,7 @@ MasterAlgorithm::MasterAlgorithm() :
     m_shouldRunNeutrinoRecoOption(true),
     m_shouldRunCosmicRecoOption(true),
     m_shouldPerformSliceId(true),
-    m_printOverallRecoStatus(false),
+    m_printOverallRecoStatus(true),
     m_visualizeOverallRecoStatus(false),
     m_pSlicingWorkerInstance(nullptr),
     m_pSliceNuWorkerInstance(nullptr),
@@ -46,6 +55,13 @@ MasterAlgorithm::MasterAlgorithm() :
     m_fullWidthCRWorkerWireGaps(true),
     m_filePathEnvironmentVariable("FW_SEARCH_PATH")
 {
+}
+
+//------------------------------------------------------------------------------------------------------------------------------------------
+
+MasterAlgorithm::~MasterAlgorithm()
+{
+    PANDORA_MONITORING_API(SaveTree(this->GetPandora(), m_treeName.c_str(), m_fileName.c_str(), "UPDATE"));
 }
 
 //------------------------------------------------------------------------------------------------------------------------------------------
@@ -169,6 +185,58 @@ StatusCode MasterAlgorithm::Initialize()
         return statusCodeException.GetStatusCode();
     }
 
+    const LArTPCMap &larTPCMap(this->GetPandora().GetGeometry()->GetLArTPCMap());
+    const LArTPC *const pFirstLArTPC(larTPCMap.begin()->second);
+    
+    float parentMinX(pFirstLArTPC->GetCenterX() - 0.5f * pFirstLArTPC->GetWidthX());
+    float parentMaxX(pFirstLArTPC->GetCenterX() + 0.5f * pFirstLArTPC->GetWidthX());
+    float parentMinY(pFirstLArTPC->GetCenterY() - 0.5f * pFirstLArTPC->GetWidthY());
+    float parentMaxY(pFirstLArTPC->GetCenterY() + 0.5f * pFirstLArTPC->GetWidthY());
+    float parentMinZ(pFirstLArTPC->GetCenterZ() - 0.5f * pFirstLArTPC->GetWidthZ());
+    float parentMaxZ(pFirstLArTPC->GetCenterZ() + 0.5f * pFirstLArTPC->GetWidthZ());
+    
+    for (const LArTPCMap::value_type &mapEntry : larTPCMap)
+    {   
+        const LArTPC *const pLArTPC(mapEntry.second);
+        parentMinX = std::min(parentMinX, pLArTPC->GetCenterX() - 0.5f * pLArTPC->GetWidthX());
+        parentMaxX = std::max(parentMaxX, pLArTPC->GetCenterX() + 0.5f * pLArTPC->GetWidthX());
+        parentMinY = std::min(parentMinY, pLArTPC->GetCenterY() - 0.5f * pLArTPC->GetWidthY());
+        parentMaxY = std::max(parentMaxY, pLArTPC->GetCenterY() + 0.5f * pLArTPC->GetWidthY());
+        parentMinZ = std::min(parentMinZ, pLArTPC->GetCenterZ() - 0.5f * pLArTPC->GetWidthZ());
+        parentMaxZ = std::max(parentMaxZ, pLArTPC->GetCenterZ() + 0.5f * pLArTPC->GetWidthZ());
+    }
+    
+    m_tpcMinX = parentMinX;
+    m_tpcMaxX = parentMaxX;
+    m_tpcMinY = parentMinY;
+    m_tpcMaxY = parentMaxY;
+    m_tpcMinZ = parentMinZ;
+    m_tpcMaxZ = parentMaxZ;
+    
+    CartesianVector normalTop(0,0,1), pointTop(0,0,m_tpcMaxZ);
+    const Plane *pPlaneTop = new Plane(normalTop, pointTop);
+    m_tpcPlanes.push_back(pPlaneTop);
+    
+    CartesianVector normalBottom(0,0,-1), pointBottom(0,0,m_tpcMinZ);
+    const Plane *pPlaneBottom = new Plane(normalBottom, pointBottom);
+    m_tpcPlanes.push_back(pPlaneBottom);
+    
+    CartesianVector normalRight(1,0,0), pointRight(m_tpcMaxX,0,0);
+    const Plane *pPlaneRight = new Plane(normalRight, pointRight);
+    m_tpcPlanes.push_back(pPlaneRight);
+    
+    CartesianVector normalLeft(-1,0,0), pointLeft(m_tpcMinX,0,0);
+    const Plane *pPlaneLeft = new Plane(normalLeft, pointLeft);
+    m_tpcPlanes.push_back(pPlaneLeft);
+    
+    CartesianVector normalBack(0,1,0), pointBack(0,m_tpcMaxY,0);
+    const Plane *pPlaneBack = new Plane(normalBack, pointBack);
+    m_tpcPlanes.push_back(pPlaneBack);
+    
+    CartesianVector normalFront(0,-1,0), pointFront(0,m_tpcMinY,0);
+    const Plane *pPlaneFront = new Plane(normalFront, pointFront);
+    m_tpcPlanes.push_back(pPlaneFront);
+    
     return STATUS_CODE_SUCCESS;
 }
 
@@ -204,6 +272,13 @@ StatusCode MasterAlgorithm::Run()
     {
         SliceHypotheses nuSliceHypotheses, crSliceHypotheses;
         PANDORA_RETURN_RESULT_IF(STATUS_CODE_SUCCESS, !=, this->RunSliceReconstruction(sliceVector, nuSliceHypotheses, crSliceHypotheses));
+        const PfoList pfoBeamList(nuSliceHypotheses.at(0));
+        const PfoList pfoCRList(crSliceHypotheses.at(0));
+        std::cout << "m_shouldRunNeutrinoRecoOption " << m_shouldRunNeutrinoRecoOption << std::endl;
+        std::cout << "pfoBeamList.size() " << pfoBeamList.size() << std::endl;
+        std::cout << "pfoBeamList.front()->GetClusterList().size() " << pfoBeamList.front()->GetClusterList().size() << std::endl;
+        std::cout << "pfoCRList.size() " << pfoCRList.size() << std::endl;
+        std::cout << "pfoCRList.front()->GetClusterList().size() " << pfoCRList.front()->GetClusterList().size() << std::endl;
         PANDORA_RETURN_RESULT_IF(STATUS_CODE_SUCCESS, !=, this->SelectBestSliceHypotheses(nuSliceHypotheses, crSliceHypotheses));
     }
 
@@ -259,7 +334,9 @@ StatusCode MasterAlgorithm::RunCosmicRayReconstruction(const VolumeIdToHitListMa
             continue;
 
         for (const CaloHit *const pCaloHit : iter->second.m_allHitList)
+        {
             PANDORA_RETURN_RESULT_IF(STATUS_CODE_SUCCESS, !=, this->Copy(pCRWorker, pCaloHit));
+        }
 
         if (m_printOverallRecoStatus)
             std::cout << "Running cosmic-ray reconstruction worker instance " << ++workerCounter << " of " << m_crWorkerInstances.size() << std::endl;
@@ -427,7 +504,7 @@ StatusCode MasterAlgorithm::RunSlicing(const VolumeIdToHitListMap &volumeIdToHit
 
 //------------------------------------------------------------------------------------------------------------------------------------------
 
-StatusCode MasterAlgorithm::RunSliceReconstruction(SliceVector &sliceVector, SliceHypotheses &nuSliceHypotheses, SliceHypotheses &crSliceHypotheses) const
+StatusCode MasterAlgorithm::RunSliceReconstruction(SliceVector &sliceVector, SliceHypotheses &nuSliceHypotheses, SliceHypotheses &crSliceHypotheses) 
 {
     unsigned int sliceCounter(0);
 
@@ -439,10 +516,14 @@ StatusCode MasterAlgorithm::RunSliceReconstruction(SliceVector &sliceVector, Sli
             const CaloHit *const pCaloHitInMaster(m_shouldRunSlicing ? static_cast<const CaloHit*>(pSliceCaloHit->GetParentAddress()) : pSliceCaloHit);
 
             if (m_shouldRunNeutrinoRecoOption)
+            {
                 PANDORA_RETURN_RESULT_IF(STATUS_CODE_SUCCESS, !=, this->Copy(m_pSliceNuWorkerInstance, pCaloHitInMaster));
+            }
 
             if (m_shouldRunCosmicRecoOption)
+            {
                 PANDORA_RETURN_RESULT_IF(STATUS_CODE_SUCCESS, !=, this->Copy(m_pSliceCRWorkerInstance, pCaloHitInMaster));
+            }
         }
 
         ++sliceCounter;
@@ -478,21 +559,105 @@ StatusCode MasterAlgorithm::RunSliceReconstruction(SliceVector &sliceVector, Sli
 
 //------------------------------------------------------------------------------------------------------------------------------------------
 
-StatusCode MasterAlgorithm::SelectBestSliceHypotheses(const SliceHypotheses &nuSliceHypotheses, const SliceHypotheses &crSliceHypotheses) const
+StatusCode MasterAlgorithm::SelectBestSliceHypotheses(const SliceHypotheses &beamSliceHypotheses, const SliceHypotheses &crSliceHypotheses) 
 {
     if (m_printOverallRecoStatus)
         std::cout << "Select best slice hypotheses" << std::endl;    
 
     PfoList selectedSlicePfos;
 
+//~~~~
+    // Variables, number of PFOs, energy, momentum, direction 
+    m_eventNumber++;
+
+    int sliceIndex(0), nSlices(beamSliceHypotheses.size());
+
+    for (sliceIndex = 0; sliceIndex < nSlices; ++sliceIndex)
+    {
+        const PfoList pfoBeamList(beamSliceHypotheses.at(sliceIndex));
+        const PfoList pfoCRList(crSliceHypotheses.at(sliceIndex));
+
+        SliceProperties *pSlicePropertiesBeam = new SliceProperties();
+        SliceProperties *pSlicePropertiesCosmic = new SliceProperties();
+
+//        std::cout << "Beam Slice" << std::endl;
+        this->GetSliceProperties(&pfoBeamList, pSlicePropertiesBeam);
+
+//        std::cout << "Cosmic Slice" << std::endl;
+        this->GetSliceProperties(&pfoCRList, pSlicePropertiesCosmic);
+/*
+        PandoraMonitoringApi::SetEveDisplayParameters(this->GetPandora(), true, DETECTOR_VIEW_XZ, -1.f, -1.f, 1.f);
+        PandoraMonitoringApi::VisualizeParticleFlowObjects(this->GetPandora(), &pfoBeamList, "BeamSlice", RED, true, true);
+        PandoraMonitoringApi::VisualizeParticleFlowObjects(this->GetPandora(), &pfoCRList, "CRSlice", BLUE, true, true);
+        PandoraMonitoringApi::ViewEvent(this->GetPandora());
+*/
+
+        PANDORA_MONITORING_API(SetTreeVariable(this->GetPandora(), m_treeName.c_str(), "eventNumber", m_eventNumber - 1));
+        PANDORA_MONITORING_API(SetTreeVariable(this->GetPandora(), m_treeName.c_str(), "sliceIndex", sliceIndex));
+        PANDORA_MONITORING_API(SetTreeVariable(this->GetPandora(), m_treeName.c_str(), "isBeam", pSlicePropertiesBeam->m_isBeam));
+
+        PANDORA_MONITORING_API(SetTreeVariable(this->GetPandora(), m_treeName.c_str(), "n2DTargetBeamHitsBeamSlice", pSlicePropertiesBeam->m_n2DTargetBeamHits));
+        PANDORA_MONITORING_API(SetTreeVariable(this->GetPandora(), m_treeName.c_str(), "n2DRemnantBeamHitsBeamSlice", pSlicePropertiesBeam->m_n2DRemnantBeamHits));
+        PANDORA_MONITORING_API(SetTreeVariable(this->GetPandora(), m_treeName.c_str(), "n2DCosmicBeamHitsBeamSlice", pSlicePropertiesBeam->m_n2DCosmicHits));
+        PANDORA_MONITORING_API(SetTreeVariable(this->GetPandora(), m_treeName.c_str(), "n2DNoMCParticleHitsBeamSlice", pSlicePropertiesBeam->m_n2DNoMCParticleHits));
+        PANDORA_MONITORING_API(SetTreeVariable(this->GetPandora(), m_treeName.c_str(), "nPfosBeamSlice", pSlicePropertiesBeam->m_nPfos));
+        PANDORA_MONITORING_API(SetTreeVariable(this->GetPandora(), m_treeName.c_str(), "nUniqueMCPrimaryParticlesBeamSlice", pSlicePropertiesBeam->m_nUniqueMCPrimaryParticles));
+        PANDORA_MONITORING_API(SetTreeVariable(this->GetPandora(), m_treeName.c_str(), "centroidXBeamSlice", pSlicePropertiesBeam->m_centroid.GetX()));
+        PANDORA_MONITORING_API(SetTreeVariable(this->GetPandora(), m_treeName.c_str(), "centroidYBeamSlice", pSlicePropertiesBeam->m_centroid.GetY()));
+        PANDORA_MONITORING_API(SetTreeVariable(this->GetPandora(), m_treeName.c_str(), "centroidZBeamSlice", pSlicePropertiesBeam->m_centroid.GetZ()));
+        PANDORA_MONITORING_API(SetTreeVariable(this->GetPandora(), m_treeName.c_str(), "majorAxisXBeamSlice", pSlicePropertiesBeam->m_majorAxis.GetX()));
+        PANDORA_MONITORING_API(SetTreeVariable(this->GetPandora(), m_treeName.c_str(), "majorAxisYBeamSlice", pSlicePropertiesBeam->m_majorAxis.GetY()));
+        PANDORA_MONITORING_API(SetTreeVariable(this->GetPandora(), m_treeName.c_str(), "majorAxisZBeamSlice", pSlicePropertiesBeam->m_majorAxis.GetZ()));
+        PANDORA_MONITORING_API(SetTreeVariable(this->GetPandora(), m_treeName.c_str(), "majorAxisEigenvalueBeamSlice", pSlicePropertiesBeam->m_majorAxisEigenvalue));
+        PANDORA_MONITORING_API(SetTreeVariable(this->GetPandora(), m_treeName.c_str(), "minorAxisOneXBeamSlice", pSlicePropertiesBeam->m_minorAxisOne.GetX()));
+        PANDORA_MONITORING_API(SetTreeVariable(this->GetPandora(), m_treeName.c_str(), "minorAxisOneYBeamSlice", pSlicePropertiesBeam->m_minorAxisOne.GetY()));
+        PANDORA_MONITORING_API(SetTreeVariable(this->GetPandora(), m_treeName.c_str(), "minorAxisOneZBeamSlice", pSlicePropertiesBeam->m_minorAxisOne.GetZ()));
+        PANDORA_MONITORING_API(SetTreeVariable(this->GetPandora(), m_treeName.c_str(), "minorAxisOneEigenvalueBeamSlice", pSlicePropertiesBeam->m_minorAxisOneEigenvalue));
+        PANDORA_MONITORING_API(SetTreeVariable(this->GetPandora(), m_treeName.c_str(), "minorAxisTwoXBeamSlice", pSlicePropertiesBeam->m_minorAxisTwo.GetX()));
+        PANDORA_MONITORING_API(SetTreeVariable(this->GetPandora(), m_treeName.c_str(), "minorAxisTwoYBeamSlice", pSlicePropertiesBeam->m_minorAxisTwo.GetY()));
+        PANDORA_MONITORING_API(SetTreeVariable(this->GetPandora(), m_treeName.c_str(), "minorAxisTwoZBeamSlice", pSlicePropertiesBeam->m_minorAxisTwo.GetZ()));
+        PANDORA_MONITORING_API(SetTreeVariable(this->GetPandora(), m_treeName.c_str(), "minorAxisTwoEigenvalueBeamSlice", pSlicePropertiesBeam->m_minorAxisTwoEigenvalue));
+        PANDORA_MONITORING_API(SetTreeVariable(this->GetPandora(), m_treeName.c_str(), "BestSeparationBeamSlice", pSlicePropertiesBeam->m_bestSeparation));
+        PANDORA_MONITORING_API(SetTreeVariable(this->GetPandora(), m_treeName.c_str(), "AngularSeparationToBeam", pSlicePropertiesBeam->m_angularSeparationToBeam));
+        PANDORA_MONITORING_API(SetTreeVariable(this->GetPandora(), m_treeName.c_str(), "ClosestDistance", pSlicePropertiesBeam->m_closestDistance));
+
+        PANDORA_MONITORING_API(SetTreeVariable(this->GetPandora(), m_treeName.c_str(), "n2DTargetBeamHitsCosmicSlice", pSlicePropertiesCosmic->m_n2DTargetBeamHits));
+        PANDORA_MONITORING_API(SetTreeVariable(this->GetPandora(), m_treeName.c_str(), "n2DRemnantBeamHitsCosmicSlice", pSlicePropertiesCosmic->m_n2DRemnantBeamHits));
+        PANDORA_MONITORING_API(SetTreeVariable(this->GetPandora(), m_treeName.c_str(), "n2DCosmicBeamHitsCosmicSlice", pSlicePropertiesCosmic->m_n2DCosmicHits));
+        PANDORA_MONITORING_API(SetTreeVariable(this->GetPandora(), m_treeName.c_str(), "n2DNoMCParticleHitsCosmicSlice", pSlicePropertiesCosmic->m_n2DNoMCParticleHits));
+        PANDORA_MONITORING_API(SetTreeVariable(this->GetPandora(), m_treeName.c_str(), "nPfosCosmicSlice", pSlicePropertiesCosmic->m_nPfos));
+        PANDORA_MONITORING_API(SetTreeVariable(this->GetPandora(), m_treeName.c_str(), "nUniqueMCPrimaryParticlesCosmicSlice", pSlicePropertiesCosmic->m_nUniqueMCPrimaryParticles));
+        PANDORA_MONITORING_API(SetTreeVariable(this->GetPandora(), m_treeName.c_str(), "centroidXCosmicSlice", pSlicePropertiesCosmic->m_centroid.GetX()));
+        PANDORA_MONITORING_API(SetTreeVariable(this->GetPandora(), m_treeName.c_str(), "centroidYCosmicSlice", pSlicePropertiesCosmic->m_centroid.GetY()));
+        PANDORA_MONITORING_API(SetTreeVariable(this->GetPandora(), m_treeName.c_str(), "centroidZCosmicSlice", pSlicePropertiesCosmic->m_centroid.GetZ()));
+        PANDORA_MONITORING_API(SetTreeVariable(this->GetPandora(), m_treeName.c_str(), "majorAxisXCosmicSlice", pSlicePropertiesCosmic->m_majorAxis.GetX()));
+        PANDORA_MONITORING_API(SetTreeVariable(this->GetPandora(), m_treeName.c_str(), "majorAxisYCosmicSlice", pSlicePropertiesCosmic->m_majorAxis.GetY()));
+        PANDORA_MONITORING_API(SetTreeVariable(this->GetPandora(), m_treeName.c_str(), "majorAxisZCosmicSlice", pSlicePropertiesCosmic->m_majorAxis.GetZ()));
+        PANDORA_MONITORING_API(SetTreeVariable(this->GetPandora(), m_treeName.c_str(), "majorAxisEigenvalueCosmicSlice", pSlicePropertiesCosmic->m_majorAxisEigenvalue));
+        PANDORA_MONITORING_API(SetTreeVariable(this->GetPandora(), m_treeName.c_str(), "minorAxisOneXCosmicSlice", pSlicePropertiesCosmic->m_minorAxisOne.GetX()));
+        PANDORA_MONITORING_API(SetTreeVariable(this->GetPandora(), m_treeName.c_str(), "minorAxisOneYCosmicSlice", pSlicePropertiesCosmic->m_minorAxisOne.GetY()));
+        PANDORA_MONITORING_API(SetTreeVariable(this->GetPandora(), m_treeName.c_str(), "minorAxisOneZCosmicSlice", pSlicePropertiesCosmic->m_minorAxisOne.GetZ()));
+        PANDORA_MONITORING_API(SetTreeVariable(this->GetPandora(), m_treeName.c_str(), "minorAxisOneEigenvalueCosmicSlice", pSlicePropertiesCosmic->m_minorAxisOneEigenvalue));
+        PANDORA_MONITORING_API(SetTreeVariable(this->GetPandora(), m_treeName.c_str(), "minorAxisTwoXCosmicSlice", pSlicePropertiesCosmic->m_minorAxisTwo.GetX()));
+        PANDORA_MONITORING_API(SetTreeVariable(this->GetPandora(), m_treeName.c_str(), "minorAxisTwoYCosmicSlice", pSlicePropertiesCosmic->m_minorAxisTwo.GetY()));
+        PANDORA_MONITORING_API(SetTreeVariable(this->GetPandora(), m_treeName.c_str(), "minorAxisTwoZCosmicSlice", pSlicePropertiesCosmic->m_minorAxisTwo.GetZ()));
+        PANDORA_MONITORING_API(SetTreeVariable(this->GetPandora(), m_treeName.c_str(), "minorAxisTwoEigenvalueCosmicSlice", pSlicePropertiesCosmic->m_minorAxisTwoEigenvalue));
+        PANDORA_MONITORING_API(SetTreeVariable(this->GetPandora(), m_treeName.c_str(), "BestSeparationBeamSlice", pSlicePropertiesCosmic->m_bestSeparation));
+        PANDORA_MONITORING_API(SetTreeVariable(this->GetPandora(), m_treeName.c_str(), "AngularSeparationToBeam", pSlicePropertiesCosmic->m_angularSeparationToBeam));
+        PANDORA_MONITORING_API(SetTreeVariable(this->GetPandora(), m_treeName.c_str(), "ClosestDistance", pSlicePropertiesCosmic->m_closestDistance));
+
+        PANDORA_MONITORING_API(FillTree(this->GetPandora(), m_treeName.c_str()));
+    }
+
+//~~~~
     if (m_shouldPerformSliceId)
     {
         for (SliceIdBaseTool *const pSliceIdTool : m_sliceIdToolVector)
-            pSliceIdTool->SelectOutputPfos(nuSliceHypotheses, crSliceHypotheses, selectedSlicePfos);
+            pSliceIdTool->SelectOutputPfos(beamSliceHypotheses, crSliceHypotheses, selectedSlicePfos);
     }
     else if (m_shouldRunNeutrinoRecoOption != m_shouldRunCosmicRecoOption)
     {
-        const SliceHypotheses &sliceHypotheses(m_shouldRunNeutrinoRecoOption ? nuSliceHypotheses : crSliceHypotheses);
+        const SliceHypotheses &sliceHypotheses(m_shouldRunNeutrinoRecoOption ? beamSliceHypotheses : crSliceHypotheses);
 
         for (const PfoList &slice : sliceHypotheses)
             selectedSlicePfos.insert(selectedSlicePfos.end(), slice.begin(), slice.end());
@@ -501,6 +666,241 @@ StatusCode MasterAlgorithm::SelectBestSliceHypotheses(const SliceHypotheses &nuS
     PfoList newSlicePfoList;
     PANDORA_RETURN_RESULT_IF(STATUS_CODE_SUCCESS, !=, this->Recreate(selectedSlicePfos, newSlicePfoList));
 
+    return STATUS_CODE_SUCCESS;
+}
+
+//------------------------------------------------------------------------------------------------------------------------------------------
+
+void MasterAlgorithm::GetSliceProperties(const PfoList *const pPfoList, SliceProperties *pSliceProperties)
+{
+    int n2DTargetBeamHits(0), n2DRemnantBeamHits(0), n2DCosmicHits(0), n2DNoMCParticleHits(0);
+
+    CaloHitList caloHitList;
+    PfoList allPfoList;
+
+    LArPfoHelper::GetAllConnectedPfos(*pPfoList, allPfoList);
+    pSliceProperties->m_nPfos = allPfoList.size();
+
+    for (const ParticleFlowObject *const pPfo : allPfoList)
+    {
+        // Get Clusters
+        ClusterList clusterList;
+        LArPfoHelper::GetTwoDClusterList(pPfo, clusterList);
+
+        // Get Calo Hit List
+        for (const Cluster *const pCluster : clusterList)
+        {
+            pCluster->GetOrderedCaloHitList().FillCaloHitList(caloHitList);
+        }
+    }
+
+    // Make MCParticle To Weight Map and populate with calo hit data
+    MCParticleWeightMap mcParticleWeightMap;
+    MCParticleVector uniqueMCPrimaryParticles;
+
+    for (const CaloHit *const pCaloHit : caloHitList)
+    {
+        const CaloHit *const pMasterCaloHit = static_cast<const CaloHit *>(pCaloHit->GetParentAddress());
+        const MCParticleWeightMap &hitMCParticleWeightMap(pMasterCaloHit->GetMCParticleWeightMap());
+
+        MCParticleVector mcParticleVector;
+        for (const MCParticleWeightMap::value_type &mapEntry : hitMCParticleWeightMap) mcParticleVector.push_back(mapEntry.first);
+        std::sort(mcParticleVector.begin(), mcParticleVector.end(), PointerLessThan<MCParticle>());
+
+        if (mcParticleVector.size() == 0)
+        {
+            n2DNoMCParticleHits++;
+            continue;
+        }
+
+        const MCParticle *pDominantMCParticle(nullptr);
+        float biggestWeight(0.f);
+
+        for (const MCParticle *const pMCParticle : mcParticleVector)
+        {
+            const float weight(hitMCParticleWeightMap.at(pMCParticle));
+            if (weight > biggestWeight) 
+            {
+                pDominantMCParticle = pMCParticle;
+            }
+
+            if (!pDominantMCParticle)
+            {
+                std::cout << "No dominant particle found." << std::endl;
+                continue;
+            }
+        }
+
+        const MCParticle *pPrimaryMCParticle(LArMCParticleHelper::GetPrimaryMCParticle(pDominantMCParticle));
+        const LArMCParticle *const pLArPrimaryMCParticle(dynamic_cast<const LArMCParticle*>(pPrimaryMCParticle));
+
+        const float momentum(pLArPrimaryMCParticle->GetMomentum().GetMagnitude());
+        const float deltaMomentum(std::fabs(momentum - m_trueMomentum));
+        const float fracMomentum(deltaMomentum / m_trueMomentum);
+
+        bool isTargetBeam(pLArPrimaryMCParticle->GetNuanceCode() == 2000 && fracMomentum < (m_momentumAcceptance/100.f));
+        bool isRemnantBeam(pLArPrimaryMCParticle->GetNuanceCode() == 2000 && fracMomentum > (m_momentumAcceptance/100.f));
+        bool isCR(pLArPrimaryMCParticle->GetNuanceCode() == 3000);
+
+        if (uniqueMCPrimaryParticles.end() != std::find(uniqueMCPrimaryParticles.begin(), uniqueMCPrimaryParticles.end(), pPrimaryMCParticle)) 
+            uniqueMCPrimaryParticles.push_back(pPrimaryMCParticle);
+
+        if (isTargetBeam)
+        {
+            n2DTargetBeamHits++;
+        }
+        else if (isCR)
+        {
+            n2DCosmicHits++;
+        }
+        else if (isRemnantBeam)
+        {
+            n2DRemnantBeamHits++;
+        }
+    }
+
+    // 3D
+    CaloHitList caloHitList3D;
+    for (const ParticleFlowObject *const pPfo : allPfoList)
+    {
+        // Get Clusters
+        ClusterList clusterList;
+        LArPfoHelper::GetThreeDClusterList(pPfo, clusterList);
+
+        // Get Calo Hit List
+        for (const Cluster *const pCluster : clusterList)
+        {
+            pCluster->GetOrderedCaloHitList().FillCaloHitList(caloHitList3D);
+        }
+    }
+
+    CaloHitList selectedCaloHitList;
+    float closestDistance(std::numeric_limits<float>::max());
+
+    this->GetSelectedCaloHits(caloHitList3D, selectedCaloHitList, closestDistance);
+
+    CartesianVector centroidSel(0.f, 0.f, 0.f);
+    LArPcaHelper::EigenVectors eigenVecsSel;
+    LArPcaHelper::EigenValues eigenValuesSel(0.f, 0.f, 0.f);
+    LArPcaHelper::RunPca(selectedCaloHitList, centroidSel, eigenValuesSel, eigenVecsSel);
+    CartesianVector majorAxisSel(eigenVecsSel.at(0));
+    CartesianVector interceptOne(0.f,0.f,0.f), interceptTwo(0.f,0.f,0.f);
+
+    try
+    {
+        this->GetTPCIntercepts(centroidSel, majorAxisSel, interceptOne, interceptTwo);
+    }
+    catch (...)
+    {
+        std::cout << "Unable to find intersection of major axis of slice with TPC" << std::endl;
+    }
+
+    // Find the intercept closest to the beam TPC intersection
+    float separationOne(std::sqrt(interceptOne.GetDistanceSquared(m_beamTPCIntersection))), separationTwo(std::sqrt(interceptTwo.GetDistanceSquared(m_beamTPCIntersection)));
+    float angularSeparationToBeam(majorAxisSel.GetOpeningAngle(m_beamDirection));
+/*
+    std::cout << "angularSeparationToBeam = " << angularSeparationToBeam << std::endl;
+    std::cout << "angularSeparationToBeam deg = " << angularSeparationToBeam*180.f/M_PI << std::endl;
+    std::cout << "closestDistance = " << closestDistance << std::endl;
+*/
+    CartesianVector fitDirection(eigenVecsSel.at(0));
+
+    const int nUniqueMCPrimaryParticles = uniqueMCPrimaryParticles.size();
+
+    int isBeam(n2DTargetBeamHits > (n2DRemnantBeamHits + n2DCosmicHits + n2DNoMCParticleHits) ? 1 : 0);
+
+    pSliceProperties->m_n2DTargetBeamHits = n2DTargetBeamHits;
+    pSliceProperties->m_n2DRemnantBeamHits = n2DRemnantBeamHits;
+    pSliceProperties->m_n2DCosmicHits = n2DCosmicHits;
+    pSliceProperties->m_n2DNoMCParticleHits = n2DNoMCParticleHits;
+    pSliceProperties->m_nUniqueMCPrimaryParticles = nUniqueMCPrimaryParticles;
+    pSliceProperties->m_isBeam = isBeam;
+    pSliceProperties->m_majorAxis = fitDirection;
+    pSliceProperties->m_majorAxisEigenvalue = eigenValuesSel.GetX();
+    pSliceProperties->m_minorAxisOne = eigenVecsSel.at(1);
+    pSliceProperties->m_minorAxisOneEigenvalue = eigenValuesSel.GetY();
+    pSliceProperties->m_minorAxisTwo = eigenVecsSel.at(2);
+    pSliceProperties->m_minorAxisTwoEigenvalue = eigenValuesSel.GetZ();
+    pSliceProperties->m_centroid = centroidSel;
+    pSliceProperties->m_bestSeparation = std::min(separationOne, separationTwo);
+    pSliceProperties->m_angularSeparationToBeam = angularSeparationToBeam*180.f/M_PI;
+    pSliceProperties->m_closestDistance = closestDistance;
+
+//    std::cout << "The number of beam hits is " << n2DBeamHits << "." << std::endl;
+//    std::cout << "The number of cosmic ray hits is " << n2DCosmicHits << "." << std::endl;
+//    std::cout << "The number of noise hits is " << n2DJunkHits << "." << std::endl;
+    return;
+}
+
+//------------------------------------------------------------------------------------------------------------------------------------------
+
+pandora::StatusCode MasterAlgorithm::GetTPCIntercepts(CartesianVector &a0, CartesianVector &lineDirection, CartesianVector &interceptOne,  CartesianVector &interceptTwo) const
+{
+    CartesianVector a(lineDirection.GetUnitVector());
+    std::vector<CartesianVector> intercepts;
+
+    for (const Plane *const pPlane : m_tpcPlanes)
+    {
+        CartesianVector intercept(pPlane->GetLineIntersection(a0, a));
+        if (this->IsContained(intercept))
+        {
+            intercepts.push_back(intercept);
+        }
+    }
+
+    if (intercepts.size() == 2)
+    {
+        interceptOne = intercepts.at(0);
+        interceptTwo = intercepts.at(1);
+    }
+    else
+    {
+        throw StatusCodeException(STATUS_CODE_NOT_ALLOWED);
+    }
+
+    return STATUS_CODE_SUCCESS;
+}
+
+//------------------------------------------------------------------------------------------------------------------------------------------
+
+bool MasterAlgorithm::IsContained(CartesianVector &spacePoint) const
+{
+    // TODO: Make cleaner floating point comparisons 
+    float safetyFactor(0.0001);
+    bool isContainedX(m_tpcMinX - safetyFactor < spacePoint.GetX() && spacePoint.GetX() < m_tpcMaxX + safetyFactor);
+    bool isContainedY(m_tpcMinY - safetyFactor < spacePoint.GetY() && spacePoint.GetY() < m_tpcMaxY + safetyFactor);
+    bool isContainedZ(m_tpcMinZ - safetyFactor < spacePoint.GetZ() && spacePoint.GetZ() < m_tpcMaxZ + safetyFactor);
+
+    return isContainedX && isContainedY && isContainedZ;
+}
+
+//------------------------------------------------------------------------------------------------------------------------------------------
+
+pandora::StatusCode MasterAlgorithm::GetSelectedCaloHits(const CaloHitList &inputCaloHitList, CaloHitList &outputCaloHitList, float &closestHitToFaceDistance) const
+{
+    if (inputCaloHitList.empty())
+        throw StatusCodeException(STATUS_CODE_NOT_INITIALIZED);
+
+    typedef std::pair<const CaloHit*, float> HitDistancePair;
+    typedef std::vector<HitDistancePair> HitDistanceVector;
+    HitDistanceVector hitDistanceVector;
+    
+    for (const CaloHit *const pCaloHit : inputCaloHitList)
+        hitDistanceVector.emplace_back(pCaloHit, (pCaloHit->GetPositionVector() - m_beamTPCIntersection).GetMagnitudeSquared());
+
+    std::sort(hitDistanceVector.begin(), hitDistanceVector.end(), [](const HitDistancePair &lhs, const HitDistancePair &rhs) -> bool {return (lhs.second < rhs.second);});
+    closestHitToFaceDistance = std::sqrt(hitDistanceVector.front().second);
+
+    const unsigned int nInputHits(inputCaloHitList.size());
+    const unsigned int nSelectedCaloHits(nInputHits < 100 ? nInputHits : static_cast<unsigned int>(std::round(static_cast<float>(nInputHits) * 10.f / 100.f + 0.5f)));
+
+    for (const HitDistancePair &hitDistancePair : hitDistanceVector)
+    {
+        outputCaloHitList.push_back(hitDistancePair.first);
+
+        if (outputCaloHitList.size() >= nSelectedCaloHits)
+            break;
+    }
     return STATUS_CODE_SUCCESS;
 }
 
@@ -521,6 +921,31 @@ StatusCode MasterAlgorithm::Reset()
         PANDORA_RETURN_RESULT_IF(STATUS_CODE_SUCCESS, !=, PandoraApi::Reset(*m_pSliceCRWorkerInstance));
 
     return STATUS_CODE_SUCCESS;
+}
+
+//------------------------------------------------------------------------------------------------------------------------------------------
+
+MasterAlgorithm::Plane::Plane(CartesianVector &normal, CartesianVector &point) :
+    m_unitNormal(0.f, 0.f, 0.f),
+    m_point(0.f, 0.f, 0.f)
+{
+    m_point = point;
+    m_unitNormal = normal.GetUnitVector();
+    m_a = m_unitNormal.GetX();
+    m_b = m_unitNormal.GetY();
+    m_c = m_unitNormal.GetZ();
+    m_d = -1.f * (normal.GetDotProduct(point));
+}
+
+//------------------------------------------------------------------------------------------------------------------------------------------
+
+CartesianVector MasterAlgorithm::Plane::GetLineIntersection(CartesianVector &a0, CartesianVector &a) const
+{
+    if (std::fabs(a.GetDotProduct(m_unitNormal)) < std::numeric_limits<float>::min())
+        return CartesianVector(std::numeric_limits<float>::max(), std::numeric_limits<float>::max(), std::numeric_limits<float>::max());
+
+    float t(-1.f * (a0.GetDotProduct(m_unitNormal) + m_d) / (a.GetDotProduct(m_unitNormal)));
+    return CartesianVector(a.GetX() * t + a0.GetX(), a.GetY() * t + a0.GetY(), a.GetZ() * t + a0.GetZ());
 }
 
 //------------------------------------------------------------------------------------------------------------------------------------------
@@ -1009,6 +1434,39 @@ StatusCode MasterAlgorithm::ReadSettings(const TiXmlHandle xmlHandle)
     PANDORA_RETURN_RESULT_IF(STATUS_CODE_SUCCESS, !=, XmlHelper::ReadValue(xmlHandle, "RecreatedClusterListName", m_recreatedClusterListName));
     PANDORA_RETURN_RESULT_IF(STATUS_CODE_SUCCESS, !=, XmlHelper::ReadValue(xmlHandle, "RecreatedVertexListName", m_recreatedVertexListName));
 
+    PANDORA_RETURN_RESULT_IF(STATUS_CODE_SUCCESS, !=, XmlHelper::ReadValue(xmlHandle, "SliceAnalysisFileName", m_fileName));
+    PANDORA_RETURN_RESULT_IF(STATUS_CODE_SUCCESS, !=, XmlHelper::ReadValue(xmlHandle, "TrueMomentum", m_trueMomentum));
+    PANDORA_RETURN_RESULT_IF(STATUS_CODE_SUCCESS, !=, XmlHelper::ReadValue(xmlHandle, "MomentumAcceptance", m_momentumAcceptance));
+
+    FloatVector beamTPCIntersection;
+    PANDORA_RETURN_RESULT_IF_AND_IF(STATUS_CODE_SUCCESS, STATUS_CODE_NOT_FOUND, !=, XmlHelper::ReadVectorOfValues(xmlHandle,
+        "BeamTPCIntersection", beamTPCIntersection));
+
+    if (3 == beamTPCIntersection.size())
+    {
+        m_beamTPCIntersection.SetValues(beamTPCIntersection.at(0), beamTPCIntersection.at(1), beamTPCIntersection.at(2));
+    }
+    else
+    {
+        // Default for protoDUNE.
+        m_beamTPCIntersection.SetValues(-33.051, 461.06, 0);
+    }
+
+    FloatVector beamDirection;
+    PANDORA_RETURN_RESULT_IF_AND_IF(STATUS_CODE_SUCCESS, STATUS_CODE_NOT_FOUND, !=, XmlHelper::ReadVectorOfValues(xmlHandle,
+        "BeamDirection", beamDirection));
+
+    if (3 == beamDirection.size())
+    {
+        m_beamDirection.SetValues(beamDirection.at(0), beamDirection.at(1), beamDirection.at(2));
+    }
+    else
+    {
+        // Default for protoDUNE.
+        float thetaXZ0(-11.844f * M_PI / 180.f);
+        m_beamDirection.SetValues(std::sin(thetaXZ0), 0, std::cos(thetaXZ0));
+    }
+
     return STATUS_CODE_SUCCESS;
 }
 
@@ -1028,5 +1486,55 @@ StatusCode MasterAlgorithm::ReadExternalSettings(const ExternalSteeringParameter
 
     return STATUS_CODE_SUCCESS;
 }
+
+//------------------------------------------------------------------------------------------------------------------------------------------
+
+MasterAlgorithm::SliceProperties::SliceProperties() : 
+    m_n2DTargetBeamHits(std::numeric_limits<int>::max()),
+    m_n2DRemnantBeamHits(std::numeric_limits<int>::max()),
+    m_n2DCosmicHits(std::numeric_limits<int>::max()),
+    m_n2DNoMCParticleHits(std::numeric_limits<int>::max()),
+    m_nPfos(std::numeric_limits<int>::max()),
+    m_nUniqueMCPrimaryParticles(std::numeric_limits<int>::max()),
+    m_isBeam(std::numeric_limits<int>::max()),
+    m_centroid(CartesianVector(0.f, 0.f, 0.f)),
+    m_majorAxis(CartesianVector(0.f, 0.f, 0.f)),
+    m_majorAxisEigenvalue(std::numeric_limits<float>::max()),
+    m_minorAxisOne(CartesianVector(0.f, 0.f, 0.f)),
+    m_minorAxisOneEigenvalue(std::numeric_limits<float>::max()),
+    m_minorAxisTwo(CartesianVector(0.f, 0.f, 0.f)),
+    m_minorAxisTwoEigenvalue(std::numeric_limits<float>::max()),
+    m_bestSeparation(std::numeric_limits<float>::max()),
+    m_angularSeparationToBeam(std::numeric_limits<float>::max()),
+    m_closestDistance(std::numeric_limits<float>::max())
+{
+}
+
+//------------------------------------------------------------------------------------------------------------------------------------------
+
+void MasterAlgorithm::SliceProperties::Reset()
+{
+    m_n2DTargetBeamHits = std::numeric_limits<int>::max();
+    m_n2DRemnantBeamHits = std::numeric_limits<int>::max();
+    m_n2DCosmicHits = std::numeric_limits<int>::max();
+    m_n2DNoMCParticleHits = std::numeric_limits<int>::max();
+    m_nPfos = std::numeric_limits<int>::max();
+    m_nUniqueMCPrimaryParticles = std::numeric_limits<int>::max();
+    m_isBeam = std::numeric_limits<int>::max();
+
+    m_centroid.SetValues(0.f, 0.f, 0.f);
+    m_majorAxis.SetValues(0.f, 0.f, 0.f);
+    m_majorAxisEigenvalue = std::numeric_limits<float>::max();
+    m_minorAxisOne.SetValues(0.f, 0.f, 0.f);
+    m_minorAxisOneEigenvalue = std::numeric_limits<float>::max();
+    m_minorAxisTwo.SetValues(0.f, 0.f, 0.f);
+    m_minorAxisTwoEigenvalue = std::numeric_limits<float>::max();
+
+    m_bestSeparation = std::numeric_limits<float>::max();
+    m_angularSeparationToBeam = std::numeric_limits<float>::max();
+    m_closestDistance = std::numeric_limits<float>::max();
+}
+
+//------------------------------------------------------------------------------------------------------------------------------------------
 
 } // namespace lar_content

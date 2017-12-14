@@ -40,6 +40,11 @@ public:
     MasterAlgorithm();
 
     /**
+     *  @brief  Destructor
+     */
+    ~MasterAlgorithm();
+
+    /**
      *  @brief  External steering parameters class
      */
     class ExternalSteeringParameters : public pandora::ExternalParameters
@@ -75,6 +80,108 @@ public:
      */
     void StitchPfos(const pandora::ParticleFlowObject *const pPfoToEnlarge, const pandora::ParticleFlowObject *const pPfoToDelete,
         PfoToLArTPCMap &pfoToLArTPCMap) const;
+
+    // Analysis Variables Added To Test Slicing ID
+    class SliceProperties
+    {
+    public:
+        SliceProperties();
+        void Reset();
+
+        int m_n2DTargetBeamHits;
+        int m_n2DRemnantBeamHits;
+        int m_n2DCosmicHits;
+        int m_n2DNoMCParticleHits;
+        int m_nPfos;
+        int m_nUniqueMCPrimaryParticles;
+        int m_isBeam;
+        pandora::CartesianVector m_centroid;
+        pandora::CartesianVector m_majorAxis;
+        float m_majorAxisEigenvalue;
+        pandora::CartesianVector m_minorAxisOne;
+        float m_minorAxisOneEigenvalue;
+        pandora::CartesianVector m_minorAxisTwo;
+        float m_minorAxisTwoEigenvalue;
+        float m_bestSeparation;
+        float m_angularSeparationToBeam;
+        float m_closestDistance;
+    };
+
+    std::string                 m_fileName;                         ///< Root file name
+    std::string                 m_treeName;                         ///< Tree name
+    int                         m_eventNumber;                      ///< Event number
+    float                       m_trueMomentum;                     ///< True momentum of beam sample
+    float                       m_momentumAcceptance;               ///< Fractional momentum acceptance
+
+    class Plane
+    {
+    public:
+        /**
+         *  @brief Constructor for the plane class.  Equation of plane used here m_a*x + m_b*y + m_c*z + m_d = 0.
+         *
+         *  @param normal a Cartesian vector that points in a direction that is normal to the plane
+         *  @param point a Cartesian vector that corresponds to any point on the plane
+         */
+        Plane(pandora::CartesianVector &normal, pandora::CartesianVector &point);
+
+       /**
+         *  @brief Return the intersection between the plane and a line 
+         *
+         *  @param a0 point on the line
+         *  @param a vector pointing along the line
+         */
+        pandora::CartesianVector GetLineIntersection(pandora::CartesianVector &a0, pandora::CartesianVector &a) const;
+
+    private:
+        float                         m_a;                       ///< Parameter defining a plane
+        float                         m_b;                       ///< Parameter defining a plane
+        float                         m_c;                       ///< Parameter defining a plane
+        float                         m_d;                       ///< Parameter defining a plane
+        pandora::CartesianVector      m_unitNormal;              ///< Unit normal to plane
+        pandora::CartesianVector      m_point;                   ///< A point on the plane
+    };
+
+    typedef std::vector<const Plane*> PlaneVector;
+    PlaneVector               m_tpcPlanes;                            ///< Vector of all planes making up global TPC volume
+    float                     m_tpcMinX;                              ///< Global TPC volume minimum x extent 
+    float                     m_tpcMaxX;                              ///< Global TPC volume maximum x extent
+    float                     m_tpcMinY;                              ///< Global TPC volume minimum y extent
+    float                     m_tpcMaxY;                              ///< Global TPC volume maximum y extent
+    float                     m_tpcMinZ;                              ///< Global TPC volume minimum z extent
+    float                     m_tpcMaxZ;                              ///< Global TPC volume maximum z extent
+    pandora::CartesianVector  m_beamTPCIntersection;                  ///< Intersection of beam and global TPC volume
+    pandora::CartesianVector  m_beamDirection;                        ///< Beam direction
+
+    /**
+     *  @brief  Function to find the number of hits belonging to beam/cr for a pfo
+     */
+    void GetSliceProperties(const pandora::PfoList *const pPfoList, SliceProperties *pSliceProperties);
+
+    /**
+     *  @brief Select a given fraction of a slice's calo hits that are closest to the beam spot
+     *
+     *  @param &inputCaloHitList all calo hits in slice
+     *  @param &outputCaloHitList selected calo hits
+     *  @param &closestHitToFaceDistance distance of closest hit to beam spot
+     */
+    pandora::StatusCode GetSelectedCaloHits(pandora::CaloHitList &inputCaloHitList, pandora::CaloHitList &outputCaloHitList, float &closestHitToFaceDistance);
+
+    /**
+     *  @brief Find the intercepts of a line with the protoDUNE detector
+     *
+     *  @param a0 a point on the line in question
+     *  @param majorAxis the direction of the line in question
+     *  @param interceptOne the first intersection between line and protoDUNE detector 
+     *  @param interceptTwo the second intersection between line and protoDUNE detector 
+     */
+    pandora::StatusCode GetTPCIntercepts(pandora::CartesianVector &a0, pandora::CartesianVector &majorAxis, pandora::CartesianVector &interceptOne,  pandora::CartesianVector &interceptTwo) const;
+
+    /**
+     *  @brief Check if a given 3D spacepoint is inside the global TPC volume
+     *
+     *  @param spacePoint
+     */
+    bool IsContained(pandora::CartesianVector &spacePoint) const;
 
 private:
     /**
@@ -150,7 +257,7 @@ private:
      *  @param  nuSliceHypotheses to receive the vector of slice neutrino hypotheses
      *  @param  crSliceHypotheses to receive the vector of slice cosmic-ray hypotheses
      */
-    pandora::StatusCode RunSliceReconstruction(SliceVector &sliceVector, SliceHypotheses &nuSliceHypotheses, SliceHypotheses &crSliceHypotheses) const;
+    pandora::StatusCode RunSliceReconstruction(SliceVector &sliceVector, SliceHypotheses &nuSliceHypotheses, SliceHypotheses &crSliceHypotheses);
 
     /**
      *  @brief  Examine slice hypotheses to identify the most appropriate to provide in final event output
@@ -158,7 +265,7 @@ private:
      *  @param  nuSliceHypotheses the vector of slice neutrino hypotheses
      *  @param  crSliceHypotheses the vector of slice cosmic-ray hypotheses
      */
-    pandora::StatusCode SelectBestSliceHypotheses(const SliceHypotheses &nuSliceHypotheses, const SliceHypotheses &crSliceHypotheses) const;
+    pandora::StatusCode SelectBestSliceHypotheses(const SliceHypotheses &nuSliceHypotheses, const SliceHypotheses &crSliceHypotheses);
 
     /**
      *  @brief  Reset all worker instances
