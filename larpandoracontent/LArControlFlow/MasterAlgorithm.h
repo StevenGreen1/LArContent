@@ -164,7 +164,7 @@ public:
      *  @param &outputCaloHitList selected calo hits
      *  @param &closestHitToFaceDistance distance of closest hit to beam spot
      */
-    pandora::StatusCode GetSelectedCaloHits(pandora::CaloHitList &inputCaloHitList, pandora::CaloHitList &outputCaloHitList, float &closestHitToFaceDistance);
+    pandora::StatusCode GetSelectedCaloHits(const pandora::CaloHitList &inputCaloHitList, pandora::CaloHitList &outputCaloHitList, float &closestHitToFaceDistance) const;
 
     /**
      *  @brief Find the intercepts of a line with the protoDUNE detector
