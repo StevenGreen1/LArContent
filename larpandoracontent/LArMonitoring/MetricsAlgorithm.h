@@ -17,26 +17,24 @@ class MetricsAlgorithm : public pandora::Algorithm
 {
 public:
     /**
-     *  @brief  Factory class for instantiating algorithm
+     *  Constructor
      */
-    class Factory : public pandora::AlgorithmFactory
-    {
-    public:
-        pandora::Algorithm *CreateAlgorithm() const;
-    };
+    MetricsAlgorithm();
+
+    /**
+     *  Destructor
+     */
+    ~MetricsAlgorithm();
 
 private:
     pandora::StatusCode Run();
     pandora::StatusCode ReadSettings(const pandora::TiXmlHandle xmlHandle);
 
-    // Member variables here
+    // Member variables 
+    const std::string     m_fileName;              ///< Analysis root file name
+    const std::string     m_treeName;              ///< Analysis root tree name
+    std::string           m_mcParticleListName;    ///< MCParticle List Name
+    std::string           m_pfoListName;           ///< PFO List Name
 };
-
-//------------------------------------------------------------------------------------------------------------------------------------------
-
-inline pandora::Algorithm *MetricsAlgorithm::Factory::CreateAlgorithm() const
-{
-    return new MetricsAlgorithm();
-}
 
 #endif // #ifndef METRICS_ALGORITHM_H
