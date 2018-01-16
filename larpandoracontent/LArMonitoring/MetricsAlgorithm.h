@@ -28,11 +28,12 @@ public:
 
 private:
     pandora::StatusCode Run();
+
     pandora::StatusCode ReadSettings(const pandora::TiXmlHandle xmlHandle);
 
     // Member variables 
-    const std::string     m_fileName;              ///< Analysis root file name
-    const std::string     m_treeName;              ///< Analysis root tree name
+    std::string           m_fileName;              ///< Analysis root file name
+    std::string           m_treeName;              ///< Analysis root tree name
     std::string           m_mcParticleListName;    ///< MCParticle List Name
     std::string           m_pfoListName;           ///< PFO List Name
 };

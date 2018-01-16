@@ -8,6 +8,8 @@
 
 #include "Pandora/AlgorithmHeaders.h"
 
+//#include "larpandoracontent/LArHelpers/LArMCParticleHelper.h"
+
 #include "larpandoracontent/LArObjects/LArMCParticle.h"
 
 #include "larpandoracontent/LArMonitoring/MetricsAlgorithm.h"
@@ -46,8 +48,8 @@ StatusCode MetricsAlgorithm::Run()
 
     for (const MCParticle *const pMCParticle : *pMCParticleList)
     {
-        const LArMCParticle *const pLArMCNeutrino(dynamic_cast<const LArMCParticle*>(pMCParticle));
-        if (2001 == pLArMCNeutrino->GetNuanceCode())
+        const LArMCParticle *const pLArMCParticle(dynamic_cast<const LArMCParticle*>(pMCParticle));
+        if (2001 == pLArMCParticle->GetNuanceCode())
         {
             std::cout << "Found target beam particle " << pLArMCNeutrino->GetParticleId() << std::endl;
         }
