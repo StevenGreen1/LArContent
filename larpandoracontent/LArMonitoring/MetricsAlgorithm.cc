@@ -8,7 +8,7 @@
 
 #include "Pandora/AlgorithmHeaders.h"
 
-//#include "larpandoracontent/LArHelpers/LArMCParticleHelper.h"
+#include "larpandoracontent/LArHelpers/LArMCParticleHelper.h"
 
 #include "larpandoracontent/LArObjects/LArMCParticle.h"
 
