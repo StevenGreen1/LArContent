@@ -40,6 +40,7 @@
 #include "larpandoracontent/LArHelpers/LArGeometryHelper.h"
 
 #include "larpandoracontent/LArMonitoring/EventValidationAlgorithm.h"
+#include "larpandoracontent/LArMonitoring/MetricsAlgorithm.h"
 #include "larpandoracontent/LArMonitoring/MCParticleMonitoringAlgorithm.h"
 #include "larpandoracontent/LArMonitoring/VisualMonitoringAlgorithm.h"
 
@@ -172,6 +173,7 @@
 
 #define LAR_ALGORITHM_LIST(d)                                                                                                   \
     d("LArEventValidation",                     EventValidationAlgorithm)                                                       \
+    d("LArMetrics",                             MetricsAlgorithm)                                                               \
     d("LArMCParticleMonitoring",                MCParticleMonitoringAlgorithm)                                                  \
     d("LArVisualMonitoring",                    VisualMonitoringAlgorithm)                                                      \
     d("LArEventReading",                        EventReadingAlgorithm)                                                          \

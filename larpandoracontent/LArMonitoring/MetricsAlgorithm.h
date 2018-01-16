@@ -10,6 +10,9 @@
 
 #include "Pandora/Algorithm.h"
 
+namespace lar_content
+{
+
 /**
  *  @brief  MetricsAlgorithm class
  */
@@ -37,5 +40,7 @@ private:
     std::string           m_mcParticleListName;    ///< MCParticle List Name
     std::string           m_pfoListName;           ///< PFO List Name
 };
+
+} // namespace lar_content
 
 #endif // #ifndef METRICS_ALGORITHM_H

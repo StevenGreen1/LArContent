@@ -8,13 +8,15 @@
 
 #include "Pandora/AlgorithmHeaders.h"
 
-#include "larpandoracontent/LArHelpers/LArMCParticleHelper.h"
-
+//#include "larpandoracontent/LArHelpers/LArMCParticleHelper.h"
 #include "larpandoracontent/LArObjects/LArMCParticle.h"
 
 #include "larpandoracontent/LArMonitoring/MetricsAlgorithm.h"
 
 using namespace pandora;
+
+namespace lar_content
+{
 
 MetricsAlgorithm::MetricsAlgorithm() : 
     m_fileName("PerformanceAnalysis.root"),
@@ -46,12 +48,13 @@ StatusCode MetricsAlgorithm::Run()
     std::cout << "pPfoList->size() " << pPfoList->size() << std::endl;
     std::cout << "pMCParticleList->size() " << pMCParticleList->size() << std::endl;
 
-    for (const MCParticle *const pMCParticle : *pMCParticleList)
+    for (const MCParticle *pMCParticle : *pMCParticleList)
     {
-        const LArMCParticle *const pLArMCParticle(dynamic_cast<const LArMCParticle*>(pMCParticle));
+        const LArMCParticle *pLArMCParticle(dynamic_cast<const LArMCParticle*>(pMCParticle));
+
         if (2001 == pLArMCParticle->GetNuanceCode())
         {
-            std::cout << "Found target beam particle " << pLArMCNeutrino->GetParticleId() << std::endl;
+            std::cout << "Found target beam particle " << pLArMCParticle->GetParticleId() << std::endl;
         }
     }
 
@@ -73,3 +76,7 @@ StatusCode MetricsAlgorithm::ReadSettings(const TiXmlHandle xmlHandle)
 
     return STATUS_CODE_SUCCESS;
 }
+
+//------------------------------------------------------------------------------------------------------------------------------------------
+
+} // namespace lar_content
