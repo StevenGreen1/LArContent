@@ -77,10 +77,11 @@ StatusCode MetricsAlgorithm::Run()
 
     int nTriggeredParticles(triggeredParticleID.size());
 
-    PANDORA_MONITORING_API(SetTreeVariable(this->GetPandora(), m_treeName.c_str(), "TriggeredParticleID", triggeredParticleID));
+    PANDORA_MONITORING_API(SetTreeVariable(this->GetPandora(), m_treeName.c_str(), "TriggeredParticleID", &triggeredParticleID));
     PANDORA_MONITORING_API(SetTreeVariable(this->GetPandora(), m_treeName.c_str(), "nTriggeredParticles", nTriggeredParticles));
     PANDORA_MONITORING_API(SetTreeVariable(this->GetPandora(), m_treeName.c_str(), "nShowerLikePFOs", nShowerLike));
     PANDORA_MONITORING_API(SetTreeVariable(this->GetPandora(), m_treeName.c_str(), "nTrackLikePFOs", nTrackLike));
+    PANDORA_MONITORING_API(FillTree(this->GetPandora(), m_treeName.c_str()));
 
     return STATUS_CODE_SUCCESS;
 }
