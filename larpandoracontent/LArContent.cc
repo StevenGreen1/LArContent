@@ -41,6 +41,7 @@
 
 #include "larpandoracontent/LArHelpers/LArGeometryHelper.h"
 
+#include "larpandoracontent/LArMonitoring/BeamTargetsAlgorithm.h"
 #include "larpandoracontent/LArMonitoring/CosmicRayTaggingMonitoringTool.h"
 #include "larpandoracontent/LArMonitoring/EventValidationAlgorithm.h"
 #include "larpandoracontent/LArMonitoring/MCParticleMonitoringAlgorithm.h"
@@ -176,6 +177,7 @@
 
 #define LAR_ALGORITHM_LIST(d)                                                                                                   \
     d("LArEventValidation",                     EventValidationAlgorithm)                                                       \
+    d("LArBeamTargets",                         BeamTargetsAlgorithm)                                                           \
     d("LArPfoValidation",                       PfoValidationAlgorithm)                                                         \
     d("LArMCParticleMonitoring",                MCParticleMonitoringAlgorithm)                                                  \
     d("LArVisualMonitoring",                    VisualMonitoringAlgorithm)                                                      \
