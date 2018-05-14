@@ -50,6 +50,7 @@
 #include "larpandoracontent/LArMonitoring/MCParticleMonitoringAlgorithm.h"
 #include "larpandoracontent/LArMonitoring/VisualMonitoringAlgorithm.h"
 #include "larpandoracontent/LArMonitoring/PfoValidationAlgorithm.h"
+#include "larpandoracontent/LArMonitoring/PiZeroAnalysisAlgorithm.h"
 #include "larpandoracontent/LArMonitoring/ShowerTensorVisualizationTool.h"
 #include "larpandoracontent/LArMonitoring/TransverseTensorVisualizationTool.h"
 
@@ -183,6 +184,7 @@
     d("LArCaloHitEventDumpAlgorithm",           CaloHitEventDumpAlgorithm)                                                      \
     d("LArCaloHitMonitoringAlgorithm",          CaloHitMonitoringAlgorithm)                                                     \
     d("LArPfoValidation",                       PfoValidationAlgorithm)                                                         \
+    d("LArPiZeroAnalysis",                      PiZeroAnalysisAlgorithm)                                                        \
     d("LArMCParticleMonitoring",                MCParticleMonitoringAlgorithm)                                                  \
     d("LArVisualMonitoring",                    VisualMonitoringAlgorithm)                                                      \
     d("LArEventReading",                        EventReadingAlgorithm)                                                          \
