@@ -172,37 +172,99 @@ void PiZeroAnalysisAlgorithm::FillAnalysisInfo(const MCParticleList *const pMCPa
             photon1.push_back(matchedParticle1.GetPfo());
             PANDORA_MONITORING_API(VisualizeParticleFlowObjects(this->GetPandora(), &photon1, "Photon1Pfo", CYAN, true, true));
 
-            CaloHitList sharedHitsPhoton1;
-            CaloHitList allHitsPhoton1;
+            CaloHitList sharedHitsPhoton1U, sharedHitsPhoton1V, sharedHitsPhoton1W;
+            CaloHitList allHitsPhoton1U, allHitsPhoton1V, allHitsPhoton1W;
+
             for (const auto &pair : mcParticleToPfoHitSharingMap.at(pDaughterMCParticle1))
             {
-                allHitsPhoton1.insert(allHitsPhoton1.end(), pair.second.begin(), pair.second.end());
-                if (pair.first == matchedParticle1.GetPfo())
+                for (const CaloHit *pCaloHit: pair.second)
                 {
-                    sharedHitsPhoton1 = pair.second;
-                    break;
+                    if (pCaloHit->GetHitType() == TPC_VIEW_U)
+                    {
+                        allHitsPhoton1U.push_back(pCaloHit);
+                    }
+                    else if (pCaloHit->GetHitType() == TPC_VIEW_V)
+                    {
+                        allHitsPhoton1V.push_back(pCaloHit);
+                    }
+                    else if (pCaloHit->GetHitType() == TPC_VIEW_W)
+                    {
+                        allHitsPhoton1W.push_back(pCaloHit);
+                    }
+
+                    if (pair.first == matchedParticle1.GetPfo())
+                    {
+                        if (pCaloHit->GetHitType() == TPC_VIEW_U)
+                        {
+                            sharedHitsPhoton1U.push_back(pCaloHit);
+                        }
+                        else if (pCaloHit->GetHitType() == TPC_VIEW_V)
+                        {
+                            sharedHitsPhoton1V.push_back(pCaloHit);
+                        }
+                        else if (pCaloHit->GetHitType() == TPC_VIEW_W)
+                        {
+                            sharedHitsPhoton1W.push_back(pCaloHit);
+                        }
+                    }
                 }
             }
-            PANDORA_MONITORING_API(VisualizeCaloHits(this->GetPandora(), &sharedHitsPhoton1, "Photon1SharedCaloHits", BLUE));
-            PANDORA_MONITORING_API(VisualizeCaloHits(this->GetPandora(), &allHitsPhoton1, "Photon1AllCaloHits", DARKBLUE));
+
+            PANDORA_MONITORING_API(VisualizeCaloHits(this->GetPandora(), &sharedHitsPhoton1U, "Photon1SharedCaloHitsU", BLUE));
+            PANDORA_MONITORING_API(VisualizeCaloHits(this->GetPandora(), &sharedHitsPhoton1V, "Photon1SharedCaloHitsV", BLUE));
+            PANDORA_MONITORING_API(VisualizeCaloHits(this->GetPandora(), &sharedHitsPhoton1W, "Photon1SharedCaloHitsW", BLUE));
+            PANDORA_MONITORING_API(VisualizeCaloHits(this->GetPandora(), &allHitsPhoton1U, "Photon1AllCaloHitsU", DARKBLUE));
+            PANDORA_MONITORING_API(VisualizeCaloHits(this->GetPandora(), &allHitsPhoton1V, "Photon1AllCaloHitsV", DARKBLUE));
+            PANDORA_MONITORING_API(VisualizeCaloHits(this->GetPandora(), &allHitsPhoton1W, "Photon1AllCaloHitsW", DARKBLUE));
 
             PfoList photon2;
             photon2.push_back(matchedParticle2.GetPfo());
             PANDORA_MONITORING_API(VisualizeParticleFlowObjects(this->GetPandora(), &photon2, "Photon2Pfo", MAGENTA, true, true));
 
-            CaloHitList sharedHitsPhoton2;
-            CaloHitList allHitsPhoton2;
+            CaloHitList sharedHitsPhoton2U, sharedHitsPhoton2V, sharedHitsPhoton2W;
+            CaloHitList allHitsPhoton2U, allHitsPhoton2V, allHitsPhoton2W;
+
             for (const auto &pair : mcParticleToPfoHitSharingMap.at(pDaughterMCParticle2))
             {
-                allHitsPhoton2.insert(allHitsPhoton2.end(), pair.second.begin(), pair.second.end());
-                if (pair.first == matchedParticle2.GetPfo())
+                for (const CaloHit *pCaloHit: pair.second)
                 {
-                    sharedHitsPhoton2 = pair.second;
-                    break;
+                    if (pCaloHit->GetHitType() == TPC_VIEW_U)
+                    {
+                        allHitsPhoton2U.push_back(pCaloHit);
+                    }
+                    else if (pCaloHit->GetHitType() == TPC_VIEW_V)
+                    {
+                        allHitsPhoton2V.push_back(pCaloHit);
+                    }
+                    else if (pCaloHit->GetHitType() == TPC_VIEW_W)
+                    {
+                        allHitsPhoton2W.push_back(pCaloHit);
+                    }
+
+                    if (pair.first == matchedParticle2.GetPfo())
+                    {
+                        if (pCaloHit->GetHitType() == TPC_VIEW_U)
+                        {
+                            sharedHitsPhoton2U.push_back(pCaloHit);
+                        }
+                        else if (pCaloHit->GetHitType() == TPC_VIEW_V)
+                        {
+                            sharedHitsPhoton2V.push_back(pCaloHit);
+                        }
+                        else if (pCaloHit->GetHitType() == TPC_VIEW_W)
+                        {
+                            sharedHitsPhoton2W.push_back(pCaloHit);
+                        }
+                    }
                 }
             }
-            PANDORA_MONITORING_API(VisualizeCaloHits(this->GetPandora(), &sharedHitsPhoton2, "Photon2SharedCaloHits", RED));
-            PANDORA_MONITORING_API(VisualizeCaloHits(this->GetPandora(), &allHitsPhoton2, "Photon2AllCaloHits", DARKRED));
+
+            PANDORA_MONITORING_API(VisualizeCaloHits(this->GetPandora(), &sharedHitsPhoton2U, "Photon2SharedCaloHitsU", RED));
+            PANDORA_MONITORING_API(VisualizeCaloHits(this->GetPandora(), &sharedHitsPhoton2V, "Photon2SharedCaloHitsV", RED));
+            PANDORA_MONITORING_API(VisualizeCaloHits(this->GetPandora(), &sharedHitsPhoton2W, "Photon2SharedCaloHitsW", RED));
+            PANDORA_MONITORING_API(VisualizeCaloHits(this->GetPandora(), &allHitsPhoton2U, "Photon2AllCaloHitsU", DARKRED));
+            PANDORA_MONITORING_API(VisualizeCaloHits(this->GetPandora(), &allHitsPhoton2V, "Photon2AllCaloHitsV", DARKRED));
+            PANDORA_MONITORING_API(VisualizeCaloHits(this->GetPandora(), &allHitsPhoton2W, "Photon2AllCaloHitsW", DARKRED));
             PANDORA_MONITORING_API(ViewEvent(this->GetPandora()));
         }
 
