@@ -72,15 +72,22 @@ std::cout << "PiZeroAnalysisAlgorithm::Run" << std::endl;
             if (pCaloHit->GetHitType() != TPC_VIEW_U && pCaloHit->GetHitType() != TPC_VIEW_V && pCaloHit->GetHitType() != TPC_VIEW_W)
                 continue;
 
-            const MCParticle *const pHitParticle(MCParticleHelper::GetMainMCParticle(pCaloHit));
-
-            if (allMCParticleToHitsMap.find(pHitParticle) == allMCParticleToHitsMap.end())
+            try
             {
-                CaloHitList caloHits;
-                allMCParticleToHitsMap.insert(LArMCParticleHelper::MCContributionMap::value_type(pHitParticle, caloHits));
-            }
+                const MCParticle *const pHitParticle(MCParticleHelper::GetMainMCParticle(pCaloHit));
 
-            allMCParticleToHitsMap.at(pHitParticle).push_back(pCaloHit);
+                if (allMCParticleToHitsMap.find(pHitParticle) == allMCParticleToHitsMap.end())
+                {
+                    CaloHitList caloHits;
+                    allMCParticleToHitsMap.insert(LArMCParticleHelper::MCContributionMap::value_type(pHitParticle, caloHits));
+                }
+
+                allMCParticleToHitsMap.at(pHitParticle).push_back(pCaloHit);
+            }
+            catch (const StatusCodeException &)
+            {
+//                std::cout << "Hit has no MC information" << std::endl;
+            }
         }
     }
 /*
@@ -123,7 +130,7 @@ void PiZeroAnalysisAlgorithm::FillAnalysisInfo(const MCParticleList *const pMCPa
     LArMCParticleHelper::PfoContributionMap &pfoToHitsMap, LArMCParticleHelper::MCParticleToPfoHitSharingMap &mcParticleToPfoHitSharingMap,
     AnalysisInfoVector &analysisInfoVector) const
 {
-//std::cout << "PiZeroAnalysisAlgorithm::FillAnalysisInfo" << std::endl;
+std::cout << "PiZeroAnalysisAlgorithm::FillAnalysisInfo" << std::endl;
     for (const MCParticle *const pMCParticle : *pMCParticleList)
     {
         if (pMCParticle->GetParticleId() != 111) continue;
@@ -279,7 +286,7 @@ void PiZeroAnalysisAlgorithm::FillAnalysisInfo(const MCParticleList *const pMCPa
 PiZeroAnalysisAlgorithm::MatchedParticle PiZeroAnalysisAlgorithm::FillMatchedParticleInfo(const MCParticle *const pMCParticle, LArMCParticleHelper::MCContributionMap &mcParticleToHitsMap,
     LArMCParticleHelper::PfoContributionMap &pfoToHitsMap, LArMCParticleHelper::MCParticleToPfoHitSharingMap &mcParticleToPfoHitSharingMap) const
 {
-//std::cout << "PiZeroAnalysisAlgorithm::FillMatchedParticleInfo" << std::endl;
+std::cout << "PiZeroAnalysisAlgorithm::FillMatchedParticleInfo" << std::endl;
     if (mcParticleToHitsMap.find(pMCParticle) == mcParticleToHitsMap.end())
     {
         std::cout << "Missing MC particle in map" << std::endl;
