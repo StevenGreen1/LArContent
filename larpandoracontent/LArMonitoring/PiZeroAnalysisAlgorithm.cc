@@ -10,6 +10,7 @@
 
 #include "larpandoracontent/LArHelpers/LArInteractionTypeHelper.h"
 #include "larpandoracontent/LArHelpers/LArMonitoringHelper.h"
+#include "larpandoracontent/LArHelpers/LArPcaHelper.h"
 #include "larpandoracontent/LArHelpers/LArPfoHelper.h"
 
 #include "larpandoracontent/LArMonitoring/PiZeroAnalysisAlgorithm.h"
@@ -316,6 +317,7 @@ void PiZeroAnalysisAlgorithm::WriteToTree(AnalysisInfoVector &analysisInfoVector
     for (const auto &analysisInfo : analysisInfoVector)
     {
         PANDORA_MONITORING_API(SetTreeVariable(this->GetPandora(), m_treeName.c_str(), "EventNumber", m_eventNumber - 1));
+
         PANDORA_MONITORING_API(SetTreeVariable(this->GetPandora(), m_treeName.c_str(), "nMCHitsPhoton1", analysisInfo.GetMatch1().GetNMCHits()));
         PANDORA_MONITORING_API(SetTreeVariable(this->GetPandora(), m_treeName.c_str(), "nPfoHitsPhoton1", analysisInfo.GetMatch1().GetNPfoHits()));
         PANDORA_MONITORING_API(SetTreeVariable(this->GetPandora(), m_treeName.c_str(), "SharedHitsPhoton1", analysisInfo.GetMatch1().GetSharedHits()));
@@ -324,6 +326,11 @@ void PiZeroAnalysisAlgorithm::WriteToTree(AnalysisInfoVector &analysisInfoVector
         PANDORA_MONITORING_API(SetTreeVariable(this->GetPandora(), m_treeName.c_str(), "Photon1PyMC", analysisInfo.GetMatch1().GetMCParticle()->GetMomentum().GetY()));
         PANDORA_MONITORING_API(SetTreeVariable(this->GetPandora(), m_treeName.c_str(), "Photon1PzMC", analysisInfo.GetMatch1().GetMCParticle()->GetMomentum().GetZ()));
         PANDORA_MONITORING_API(SetTreeVariable(this->GetPandora(), m_treeName.c_str(), "Photon1PMC", analysisInfo.GetMatch1().GetMCParticle()->GetMomentum().GetMagnitude()));
+        PANDORA_MONITORING_API(SetTreeVariable(this->GetPandora(), m_treeName.c_str(), "Photon1EnergyReco", analysisInfo.GetMatch1().GetRecoEnergy()));
+        PANDORA_MONITORING_API(SetTreeVariable(this->GetPandora(), m_treeName.c_str(), "Photon1PxReco", analysisInfo.GetMatch1().GetRecoPx()));
+        PANDORA_MONITORING_API(SetTreeVariable(this->GetPandora(), m_treeName.c_str(), "Photon1PyReco", analysisInfo.GetMatch1().GetRecoPy()));
+        PANDORA_MONITORING_API(SetTreeVariable(this->GetPandora(), m_treeName.c_str(), "Photon1PzReco", analysisInfo.GetMatch1().GetRecoPz()));
+
         PANDORA_MONITORING_API(SetTreeVariable(this->GetPandora(), m_treeName.c_str(), "nMCHitsPhoton2", analysisInfo.GetMatch2().GetNMCHits()));
         PANDORA_MONITORING_API(SetTreeVariable(this->GetPandora(), m_treeName.c_str(), "nPfoHitsPhoton2", analysisInfo.GetMatch2().GetNPfoHits()));
         PANDORA_MONITORING_API(SetTreeVariable(this->GetPandora(), m_treeName.c_str(), "SharedHitsPhoton2", analysisInfo.GetMatch2().GetSharedHits()));
@@ -331,12 +338,23 @@ void PiZeroAnalysisAlgorithm::WriteToTree(AnalysisInfoVector &analysisInfoVector
         PANDORA_MONITORING_API(SetTreeVariable(this->GetPandora(), m_treeName.c_str(), "Photon2PyMC", analysisInfo.GetMatch2().GetMCParticle()->GetMomentum().GetY()));
         PANDORA_MONITORING_API(SetTreeVariable(this->GetPandora(), m_treeName.c_str(), "Photon2PzMC", analysisInfo.GetMatch2().GetMCParticle()->GetMomentum().GetZ()));
         PANDORA_MONITORING_API(SetTreeVariable(this->GetPandora(), m_treeName.c_str(), "Photon2PMC", analysisInfo.GetMatch2().GetMCParticle()->GetMomentum().GetMagnitude()));
+        PANDORA_MONITORING_API(SetTreeVariable(this->GetPandora(), m_treeName.c_str(), "Photon2EnergyReco", analysisInfo.GetMatch2().GetRecoEnergy()));
+        PANDORA_MONITORING_API(SetTreeVariable(this->GetPandora(), m_treeName.c_str(), "Photon2PxReco", analysisInfo.GetMatch2().GetRecoPx()));
+        PANDORA_MONITORING_API(SetTreeVariable(this->GetPandora(), m_treeName.c_str(), "Photon2PyReco", analysisInfo.GetMatch2().GetRecoPy()));
+        PANDORA_MONITORING_API(SetTreeVariable(this->GetPandora(), m_treeName.c_str(), "Photon2PzReco", analysisInfo.GetMatch2().GetRecoPz()));
+
         PANDORA_MONITORING_API(SetTreeVariable(this->GetPandora(), m_treeName.c_str(), "PiZeroMassMC", analysisInfo.GetPiZeroMassMC()));
         PANDORA_MONITORING_API(SetTreeVariable(this->GetPandora(), m_treeName.c_str(), "PiZeroEnergyMC", analysisInfo.GetPiZeroEnergyMC()));
         PANDORA_MONITORING_API(SetTreeVariable(this->GetPandora(), m_treeName.c_str(), "PiZeroPxMC", analysisInfo.GetPiZeroPxMC()));
         PANDORA_MONITORING_API(SetTreeVariable(this->GetPandora(), m_treeName.c_str(), "PiZeroPyMC", analysisInfo.GetPiZeroPyMC()));
         PANDORA_MONITORING_API(SetTreeVariable(this->GetPandora(), m_treeName.c_str(), "PiZeroPzMC", analysisInfo.GetPiZeroPzMC()));
         PANDORA_MONITORING_API(SetTreeVariable(this->GetPandora(), m_treeName.c_str(), "PiZeroPMC", analysisInfo.GetPiZeroPMC()));
+        PANDORA_MONITORING_API(SetTreeVariable(this->GetPandora(), m_treeName.c_str(), "PiZeroMassReco", analysisInfo.GetPiZeroMassReco()));
+        PANDORA_MONITORING_API(SetTreeVariable(this->GetPandora(), m_treeName.c_str(), "PiZeroEnergyReco", analysisInfo.GetPiZeroEnergyReco()));
+        PANDORA_MONITORING_API(SetTreeVariable(this->GetPandora(), m_treeName.c_str(), "PiZeroPxReco", analysisInfo.GetPiZeroPxReco()));
+        PANDORA_MONITORING_API(SetTreeVariable(this->GetPandora(), m_treeName.c_str(), "PiZeroPyReco", analysisInfo.GetPiZeroPyReco()));
+        PANDORA_MONITORING_API(SetTreeVariable(this->GetPandora(), m_treeName.c_str(), "PiZeroPzReco", analysisInfo.GetPiZeroPzReco()));
+        PANDORA_MONITORING_API(SetTreeVariable(this->GetPandora(), m_treeName.c_str(), "PiZeroPReco", analysisInfo.GetPiZeroPReco()));
 
         PANDORA_MONITORING_API(FillTree(this->GetPandora(), m_treeName.c_str()));
     }
@@ -380,7 +398,11 @@ PiZeroAnalysisAlgorithm::MatchedParticle::MatchedParticle(const MCParticle *pMCP
     m_pMatchedPfo(pPfo),
     m_nMCHits(nMCHits),
     m_nPfoHits(nPfoHits),
-    m_nSharedHits(nSharedHits)
+    m_nSharedHits(nSharedHits),
+    m_recoEnergy(std::numeric_limits<float>::max()),
+    m_recoPx(std::numeric_limits<float>::max()),
+    m_recoPy(std::numeric_limits<float>::max()),
+    m_recoPz(std::numeric_limits<float>::max())
 {
     this->CalculateRecoEnergy();
 }
@@ -389,11 +411,33 @@ PiZeroAnalysisAlgorithm::MatchedParticle::MatchedParticle(const MCParticle *pMCP
 
 void PiZeroAnalysisAlgorithm::MatchedParticle::CalculateRecoEnergy()
 {
+    // ATTN: Assume collection plane W for energy, could be better
     CaloHitList caloHitList;
     LArPfoHelper::GetCaloHits(m_pMatchedPfo, TPC_VIEW_W, caloHitList);
-    std::cout << "NCaloHitsW : " << caloHitList.size() << std::endl;
     LArPfoHelper::GetIsolatedCaloHits(m_pMatchedPfo, TPC_VIEW_W, caloHitList);
-    std::cout << "NCaloHitsW inc isolated : " << caloHitList.size() << std::endl;
+
+    m_recoEnergy = 0.f;
+
+    for (const CaloHit *pCaloHit : caloHitList)
+        m_recoEnergy += pCaloHit->GetInputEnergy();
+
+    CaloHitList caloHitList3D;
+    LArPfoHelper::GetCaloHits(m_pMatchedPfo, TPC_3D, caloHitList3D);
+    LArPfoHelper::GetIsolatedCaloHits(m_pMatchedPfo, TPC_3D, caloHitList3D);
+
+    CartesianVector centroid(0.f, 0.f, 0.f);
+    LArPcaHelper::EigenVectors eigenVecs;
+    LArPcaHelper::EigenValues eigenValues(0.f, 0.f, 0.f);
+
+    try
+    {
+        LArPcaHelper::RunPca(caloHitList3D, centroid, eigenValues, eigenVecs);
+        CartesianVector direction(eigenVecs.at(0));
+        m_recoPx = direction.GetUnitVector().GetX() * m_recoEnergy;
+        m_recoPy = direction.GetUnitVector().GetY() * m_recoEnergy;
+        m_recoPz = direction.GetUnitVector().GetZ() * m_recoEnergy;
+    }
+    catch (const StatusCodeException &) {}
 }
 
 //------------------------------------------------------------------------------------------------------------------------------------------
@@ -408,7 +452,12 @@ PiZeroAnalysisAlgorithm::AnalysisInfo::AnalysisInfo(MatchedParticle &photon1, Ma
     m_piZeroPyMC(std::numeric_limits<float>::max()),
     m_piZeroPzMC(std::numeric_limits<float>::max()),
     m_piZeroPMC(std::numeric_limits<float>::max()),
-    m_piZeroMassReco(-1.f)
+    m_piZeroMassReco(-1.f),
+    m_piZeroEnergyReco(std::numeric_limits<float>::max()),
+    m_piZeroPxReco(std::numeric_limits<float>::max()),
+    m_piZeroPyReco(std::numeric_limits<float>::max()),
+    m_piZeroPzReco(std::numeric_limits<float>::max()),
+    m_piZeroPReco(std::numeric_limits<float>::max())
 {
     if (photon1.GetNMCHits() > photon2.GetNMCHits())
     {
@@ -444,6 +493,24 @@ void PiZeroAnalysisAlgorithm::AnalysisInfo::CalculatePiZeroMasses()
 
     if (m_piZeroEnergyMC > m_piZeroPMC)
         m_piZeroMassMC = std::sqrt(m_piZeroEnergyMC*m_piZeroEnergyMC - m_piZeroPMC*m_piZeroPMC);
+
+    // Reco
+    CartesianVector recoMomentum1(m_photon1.GetRecoPx(), m_photon1.GetRecoPy(), m_photon1.GetRecoPz());
+    const float recoEnergy1(m_photon1.GetRecoEnergy());
+
+    CartesianVector recoMomentum2(m_photon2.GetRecoPx(), m_photon2.GetRecoPy(), m_photon2.GetRecoPz());
+    const float recoEnergy2(m_photon2.GetRecoEnergy());
+
+    CartesianVector recoPiZeroMomentum(recoMomentum1 + recoMomentum2);
+
+    m_piZeroEnergyReco = recoEnergy1 + recoEnergy2;
+    m_piZeroPxReco = recoPiZeroMomentum.GetX();
+    m_piZeroPyReco = recoPiZeroMomentum.GetY();
+    m_piZeroPzReco = recoPiZeroMomentum.GetZ();
+    m_piZeroPReco = recoPiZeroMomentum.GetMagnitude();
+
+    if (m_piZeroEnergyReco > m_piZeroPReco)
+        m_piZeroMassReco = std::sqrt(m_piZeroEnergyReco*m_piZeroEnergyReco - m_piZeroPReco*m_piZeroPReco);
 }
 
 //------------------------------------------------------------------------------------------------------------------------------------------

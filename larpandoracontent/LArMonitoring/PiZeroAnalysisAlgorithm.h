@@ -85,12 +85,36 @@ private:
          */
         int GetSharedHits() const;
 
+        /**
+         *  @brief Get reconstructed energy
+         */
+        float GetRecoEnergy() const;
+
+        /**
+         *  @brief Get reconstructed momentum along x
+         */
+        float GetRecoPx() const;
+
+        /**
+         *  @brief Get reconstructed momentum along y
+         */
+        float GetRecoPy() const;
+
+        /**
+         *  @brief Get reconstructed momentum along z
+         */
+        float GetRecoPz() const;
+
     private:
         const pandora::MCParticle *m_pMCParticle; ///< Target MCParticle
         const pandora::Pfo        *m_pMatchedPfo; ///< Best matched reconstructed particle
         int                        m_nMCHits;     ///< nHits MC
         int                        m_nPfoHits;    ///< nHits Reco
         int                        m_nSharedHits; ///< nHits Shared
+        float                      m_recoEnergy;  ///< Reco energy
+        float                      m_recoPx;      ///< Reco Px
+        float                      m_recoPy;      ///< Reco Py
+        float                      m_recoPz;      ///< Reco Pz
     };
 
     /**
@@ -157,6 +181,31 @@ private:
          */
         float GetPiZeroMassReco() const;
 
+        /**
+         *  @brief Get reco pi zero energy
+         */
+        float GetPiZeroEnergyReco() const;
+
+        /**
+         *  @brief Get reco pi zero px
+         */
+        float GetPiZeroPxReco() const;
+
+        /**
+         *  @brief Get reco pi zero py
+         */
+        float GetPiZeroPyReco() const;
+
+        /**
+         *  @brief Get reco pi zero pz
+         */
+        float GetPiZeroPzReco() const;
+
+        /**
+         *  @brief Get reco pi zero p
+         */
+        float GetPiZeroPReco() const;
+
     private:
         MatchedParticle m_photon1;           ///< Matched photon 1 info
         MatchedParticle m_photon2;           ///< Matched photon 2 info
@@ -167,6 +216,11 @@ private:
         float           m_piZeroPzMC;        ///< MC pion momentum z
         float           m_piZeroPMC;         ///< MC pion total momentum
         float           m_piZeroMassReco;    ///< Reco pion mass
+        float           m_piZeroEnergyReco;  ///< Reco pion energy
+        float           m_piZeroPxReco;      ///< Reco pion momentum x
+        float           m_piZeroPyReco;      ///< Reco pion momentum y
+        float           m_piZeroPzReco;      ///< Reco pion momentum z
+        float           m_piZeroPReco;       ///< Reco pion total momentum
     };
 
     typedef std::vector<AnalysisInfo> AnalysisInfoVector;
@@ -255,6 +309,34 @@ inline int PiZeroAnalysisAlgorithm::MatchedParticle::GetSharedHits() const
 }
 
 //------------------------------------------------------------------------------------------------------------------------------------------
+
+inline float PiZeroAnalysisAlgorithm::MatchedParticle::GetRecoEnergy() const
+{
+    return m_recoEnergy;
+}
+
+//------------------------------------------------------------------------------------------------------------------------------------------
+
+inline float PiZeroAnalysisAlgorithm::MatchedParticle::GetRecoPx() const
+{
+   return m_recoPx;
+}
+
+//------------------------------------------------------------------------------------------------------------------------------------------
+
+inline float PiZeroAnalysisAlgorithm::MatchedParticle::GetRecoPy() const
+{
+   return m_recoPy;
+}
+
+//------------------------------------------------------------------------------------------------------------------------------------------
+
+inline float PiZeroAnalysisAlgorithm::MatchedParticle::GetRecoPz() const
+{
+   return m_recoPz;
+}
+
+//------------------------------------------------------------------------------------------------------------------------------------------
 //------------------------------------------------------------------------------------------------------------------------------------------
 
 inline PiZeroAnalysisAlgorithm::MatchedParticle PiZeroAnalysisAlgorithm::AnalysisInfo::GetMatch1() const
@@ -316,6 +398,41 @@ inline float PiZeroAnalysisAlgorithm::AnalysisInfo::GetPiZeroPMC() const
 inline float PiZeroAnalysisAlgorithm::AnalysisInfo::GetPiZeroMassReco() const
 {
     return m_piZeroMassReco;
+}
+
+//------------------------------------------------------------------------------------------------------------------------------------------
+
+inline float PiZeroAnalysisAlgorithm::AnalysisInfo::GetPiZeroEnergyReco() const
+{
+    return m_piZeroEnergyReco;
+}
+
+//------------------------------------------------------------------------------------------------------------------------------------------
+
+inline float PiZeroAnalysisAlgorithm::AnalysisInfo::GetPiZeroPxReco() const
+{
+    return m_piZeroPxReco;
+}
+
+//------------------------------------------------------------------------------------------------------------------------------------------
+
+inline float PiZeroAnalysisAlgorithm::AnalysisInfo::GetPiZeroPyReco() const
+{
+    return m_piZeroPyReco;
+}
+
+//------------------------------------------------------------------------------------------------------------------------------------------
+
+inline float PiZeroAnalysisAlgorithm::AnalysisInfo::GetPiZeroPzReco() const
+{
+    return m_piZeroPzReco;
+}
+
+//------------------------------------------------------------------------------------------------------------------------------------------
+
+inline float PiZeroAnalysisAlgorithm::AnalysisInfo::GetPiZeroPReco() const
+{
+    return m_piZeroPReco;
 }
 
 } // namespace lar_content
