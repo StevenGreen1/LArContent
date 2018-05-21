@@ -58,7 +58,7 @@ private:
         /**
          *  @brief  Calculate reco energy based on calo hits
          */
-        void PiZeroAnalysisAlgorithm::MatchedParticle::CalculateRecoEnergy();
+        void CalculateRecoEnergy();
 
         /**
          *  @brief Get mc particle
