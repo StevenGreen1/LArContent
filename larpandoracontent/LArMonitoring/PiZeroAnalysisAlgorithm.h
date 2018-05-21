@@ -56,6 +56,11 @@ private:
         MatchedParticle(const pandora::MCParticle *pMCParticle, const pandora::Pfo *pPfo, const int nMCHits, const int nPfoHits, const int nSharedHits);
 
         /**
+         *  @brief  Calculate reco energy based on calo hits
+         */
+        void PiZeroAnalysisAlgorithm::MatchedParticle::CalculateRecoEnergy();
+
+        /**
          *  @brief Get mc particle
          */
         const pandora::MCParticle *GetMCParticle() const;

@@ -102,11 +102,6 @@ std::cout << "Particle " << iter.first->GetParticleId() << ", nHits " << iter.se
     {
         PfoList allConnectedPfos;
         LArPfoHelper::GetAllConnectedPfos(*pPfoList, allConnectedPfos);
-/*
-        for (const Pfo *const pPfo : allConnectedPfos)
-        {
-        }
-*/
         LArMCParticleHelper::GetPfoToReconstructable2DHitsMap(allConnectedPfos, allMCParticleToHitsMap, pfoToHitsMap);
     }
 
@@ -310,7 +305,7 @@ std::cout << "PiZeroAnalysisAlgorithm::FillMatchedParticleInfo" << std::endl;
         }
     }
 
-    const int nSharedHits(pfoToHitsMap.at(pBestMatch).size());
+    const int nPfoHits(pfoToHitsMap.at(pBestMatch).size());
     return MatchedParticle(pMCParticle, pBestMatch, nMCHits, nPfoHits, nSharedHits);
 }
 
@@ -387,6 +382,18 @@ PiZeroAnalysisAlgorithm::MatchedParticle::MatchedParticle(const MCParticle *pMCP
     m_nPfoHits(nPfoHits),
     m_nSharedHits(nSharedHits)
 {
+    this->CalculateRecoEnergy();
+}
+
+//------------------------------------------------------------------------------------------------------------------------------------------
+
+void PiZeroAnalysisAlgorithm::MatchedParticle::CalculateRecoEnergy()
+{
+    CaloHitList caloHitList;
+    LArPfoHelper::GetCaloHits(m_pMatchedPfo, TPC_W, caloHitList);
+    std::cout << "NCaloHitsW : " << caloHitList.size() << std::endl;
+    LArPfoHelper::GetIsolatedCaloHits(m_pMatchedPfo, TPC_W, caloHitList);
+    std::cout << "NCaloHitsW inc isolated : " << caloHitList.size() << std::endl;
 }
 
 //------------------------------------------------------------------------------------------------------------------------------------------
