@@ -57,6 +57,16 @@ private:
         MatchedParticle(const pandora::MCParticle *pMCParticle, const pandora::Pfo *pPfo, pandora::CaloHitList &mcCaloHitList, pandora::CaloHitList &pfoCaloHitList, pandora::CaloHitList &sharedCaloHitList, const float hitToGeV);
 
         /**
+         *  @brief  Count hits in calo hit list by type
+         *
+         *  @param  caloHitList
+         *  @param  nHitsU
+         *  @param  nHitsV
+         *  @param  nHitsW
+         */
+        void CountHits(pandora::CaloHitList &caloHitList, int &nHitsU, int &nHitsV, int &nHitsW);
+
+        /**
          *  @brief  Calculate reco energy based on calo hits
          *
          *  @param mcCaloHitList mc hits
@@ -79,14 +89,59 @@ private:
         int GetNMCHits() const;
 
         /**
+         *  @brief Get m_nMCHitsU
+         */
+        int GetNMCHitsU() const;
+
+        /**
+         *  @brief Get m_nMCHitsV
+         */
+        int GetNMCHitsV() const;
+
+        /**
+         *  @brief Get m_nMCHitsW
+         */
+        int GetNMCHitsW() const;
+
+        /**
          *  @brief Get m_nPfoHits
          */
         int GetNPfoHits() const;
 
         /**
+         *  @brief Get m_nPfoHitsU
+         */
+        int GetNPfoHitsU() const;
+
+        /**
+         *  @brief Get m_nPfoHitsV
+         */
+        int GetNPfoHitsV() const;
+
+        /**
+         *  @brief Get m_nPfoHitsW
+         */
+        int GetNPfoHitsW() const;
+
+        /**
          *  @brief Get m_nSharedHits
          */
         int GetSharedHits() const;
+
+        /**
+         *  @brief Get m_nSharedHitsU
+         */
+        int GetSharedHitsU() const;
+
+        /**
+         *  @brief Get m_nSharedHitsV
+         */
+        int GetSharedHitsV() const;
+
+        /**
+         *  @brief Get m_nSharedHitsW
+         */
+        int GetSharedHitsW() const;
 
         /**
          *  @brief Get reconstructed energy
@@ -147,8 +202,17 @@ private:
         const pandora::MCParticle *m_pMCParticle;            ///< Target MCParticle
         const pandora::Pfo        *m_pMatchedPfo;            ///< Best matched reconstructed particle
         int                        m_nMCHits;                ///< nHits MC
+        int                        m_nMCHitsU;               ///< nHits MC U
+        int                        m_nMCHitsV;               ///< nHits MC V
+        int                        m_nMCHitsW;               ///< nHits MC W
         int                        m_nPfoHits;               ///< nHits Reco
+        int                        m_nPfoHitsU;              ///< nHits Reco U
+        int                        m_nPfoHitsV;              ///< nHits Reco V
+        int                        m_nPfoHitsW;              ///< nHits Reco W
         int                        m_nSharedHits;            ///< nHits Shared
+        int                        m_nSharedHitsU;           ///< nHits Shared U
+        int                        m_nSharedHitsV;           ///< nHits Shared V
+        int                        m_nSharedHitsW;           ///< nHits Shared W
         float                      m_recoEnergy;             ///< Reco energy
         float                      m_recoPx;                 ///< Reco Px
         float                      m_recoPy;                 ///< Reco Py
@@ -419,6 +483,27 @@ inline int PiZeroAnalysisAlgorithm::MatchedParticle::GetNMCHits() const
 
 //------------------------------------------------------------------------------------------------------------------------------------------
 
+inline int PiZeroAnalysisAlgorithm::MatchedParticle::GetNMCHitsU() const
+{
+    return m_nMCHitsU;
+}
+
+//------------------------------------------------------------------------------------------------------------------------------------------
+
+inline int PiZeroAnalysisAlgorithm::MatchedParticle::GetNMCHitsV() const
+{
+    return m_nMCHitsV;
+}
+
+//------------------------------------------------------------------------------------------------------------------------------------------
+
+inline int PiZeroAnalysisAlgorithm::MatchedParticle::GetNMCHitsW() const
+{
+    return m_nMCHitsW;
+}
+
+//------------------------------------------------------------------------------------------------------------------------------------------
+
 inline int PiZeroAnalysisAlgorithm::MatchedParticle::GetNPfoHits() const
 {
     return m_nPfoHits;
@@ -426,9 +511,51 @@ inline int PiZeroAnalysisAlgorithm::MatchedParticle::GetNPfoHits() const
 
 //------------------------------------------------------------------------------------------------------------------------------------------
 
+inline int PiZeroAnalysisAlgorithm::MatchedParticle::GetNPfoHitsU() const
+{
+    return m_nPfoHitsU;
+}
+
+//------------------------------------------------------------------------------------------------------------------------------------------
+
+inline int PiZeroAnalysisAlgorithm::MatchedParticle::GetNPfoHitsV() const
+{
+    return m_nPfoHitsV;
+}
+
+//------------------------------------------------------------------------------------------------------------------------------------------
+
+inline int PiZeroAnalysisAlgorithm::MatchedParticle::GetNPfoHitsW() const
+{
+    return m_nPfoHitsW;
+}
+
+//------------------------------------------------------------------------------------------------------------------------------------------
+
 inline int PiZeroAnalysisAlgorithm::MatchedParticle::GetSharedHits() const
 {
     return m_nSharedHits;
+}
+
+//------------------------------------------------------------------------------------------------------------------------------------------
+
+inline int PiZeroAnalysisAlgorithm::MatchedParticle::GetSharedHitsU() const
+{
+    return m_nSharedHitsU;
+}
+
+//------------------------------------------------------------------------------------------------------------------------------------------
+
+inline int PiZeroAnalysisAlgorithm::MatchedParticle::GetSharedHitsV() const
+{
+    return m_nSharedHitsV;
+}
+
+//------------------------------------------------------------------------------------------------------------------------------------------
+
+inline int PiZeroAnalysisAlgorithm::MatchedParticle::GetSharedHitsW() const
+{
+    return m_nSharedHitsW;
 }
 
 //------------------------------------------------------------------------------------------------------------------------------------------
