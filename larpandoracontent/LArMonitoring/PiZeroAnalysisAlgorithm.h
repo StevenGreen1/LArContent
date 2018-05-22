@@ -49,11 +49,11 @@ private:
          *
          *  @param pMCParticle target mc particle
          *  @param pPfo best matched pfo
-         *  @param nMCHits number of mc hits
-         *  @param nPfoHits number of pfo hits
-         *  @param nSharedHits number of shared hits
+         *  @param mcCaloHitList mc hits
+         *  @param pfoCaloHitList pfo hits
+         *  @param sharedCaloHitList shared hits
          */
-        MatchedParticle(const pandora::MCParticle *pMCParticle, const pandora::Pfo *pPfo, const int nMCHits, const int nPfoHits, const int nSharedHits);
+        MatchedParticle(const pandora::MCParticle *pMCParticle, const pandora::Pfo *pPfo, pandora::CaloHitList &mcCaloHitList, pandora::CaloHitList &pfoCaloHitList, pandora::CaloHitList &sharedCaloHitList);
 
         /**
          *  @brief  Calculate reco energy based on calo hits
@@ -105,16 +105,40 @@ private:
          */
         float GetRecoPz() const;
 
+        /**
+         *  @brief Get reconstructed energy with cheated pat rec
+         */
+        float GetCheatedPatRecEnergy() const;
+
+        /**
+         *  @brief Get reconstructed momentum along x with cheated pat rec
+         */
+        float GetCheatedPatRecPx() const;
+
+        /**
+         *  @brief Get reconstructed momentum along y with cheated pat rec
+         */
+        float GetCheatedPatRecPy() const;
+
+        /**
+         *  @brief Get reconstructed momentum along z with cheated pat rec
+         */
+        float GetCheatedPatRecPz() const;
+
     private:
-        const pandora::MCParticle *m_pMCParticle; ///< Target MCParticle
-        const pandora::Pfo        *m_pMatchedPfo; ///< Best matched reconstructed particle
-        int                        m_nMCHits;     ///< nHits MC
-        int                        m_nPfoHits;    ///< nHits Reco
-        int                        m_nSharedHits; ///< nHits Shared
-        float                      m_recoEnergy;  ///< Reco energy
-        float                      m_recoPx;      ///< Reco Px
-        float                      m_recoPy;      ///< Reco Py
-        float                      m_recoPz;      ///< Reco Pz
+        const pandora::MCParticle *m_pMCParticle;         ///< Target MCParticle
+        const pandora::Pfo        *m_pMatchedPfo;         ///< Best matched reconstructed particle
+        int                        m_nMCHits;             ///< nHits MC
+        int                        m_nPfoHits;            ///< nHits Reco
+        int                        m_nSharedHits;         ///< nHits Shared
+        float                      m_recoEnergy;          ///< Reco energy
+        float                      m_recoPx;              ///< Reco Px
+        float                      m_recoPy;              ///< Reco Py
+        float                      m_recoPz;              ///< Reco Pz
+        float                      m_cheatedPatRecEnergy; ///< Reconstructed hits cheated pattern recognition energy
+        float                      m_cheatedPatRecPx;     ///< Reconstructed hits cheated pattern recognition Px
+        float                      m_cheatedPatRecPy;     ///< Reconstructed hits cheated pattern recognition Py
+        float                      m_cheatedPatRecPz;     ///< Reconstructed hits cheated pattern recognition Pz
     };
 
     /**
@@ -206,21 +230,57 @@ private:
          */
         float GetPiZeroPReco() const;
 
+        /**
+         *  @brief Get cheated pat rec pi zero mass
+         */
+        float GetPiZeroMassCheatedPatRec() const;
+
+        /**
+         *  @brief Get cheated pat rec pi zero energy
+         */
+        float GetPiZeroEnergyCheatedPatRec() const;
+
+        /**
+         *  @brief Get cheated pat rec pi zero px
+         */
+        float GetPiZeroPxCheatedPatRec() const;
+
+        /**
+         *  @brief Get cheated pat rec pi zero py
+         */
+        float GetPiZeroPyCheatedPatRec() const;
+
+        /**
+         *  @brief Get cheated pat rec pi zero pz
+         */
+        float GetPiZeroPzCheatedPatRec() const;
+
+        /**
+         *  @brief Get cheated pat rec pi zero p
+         */
+        float GetPiZeroPCheatedPatRec() const;
+
     private:
-        MatchedParticle m_photon1;           ///< Matched photon 1 info
-        MatchedParticle m_photon2;           ///< Matched photon 2 info
-        float           m_piZeroMassMC;      ///< MC pion mass
-        float           m_piZeroEnergyMC;    ///< MC pion energy
-        float           m_piZeroPxMC;        ///< MC pion momentum x
-        float           m_piZeroPyMC;        ///< MC pion momentum y
-        float           m_piZeroPzMC;        ///< MC pion momentum z
-        float           m_piZeroPMC;         ///< MC pion total momentum
-        float           m_piZeroMassReco;    ///< Reco pion mass
-        float           m_piZeroEnergyReco;  ///< Reco pion energy
-        float           m_piZeroPxReco;      ///< Reco pion momentum x
-        float           m_piZeroPyReco;      ///< Reco pion momentum y
-        float           m_piZeroPzReco;      ///< Reco pion momentum z
-        float           m_piZeroPReco;       ///< Reco pion total momentum
+        MatchedParticle m_photon1;                    ///< Matched photon 1 info
+        MatchedParticle m_photon2;                    ///< Matched photon 2 info
+        float           m_piZeroMassMC;               ///< MC pion mass
+        float           m_piZeroEnergyMC;             ///< MC pion energy
+        float           m_piZeroPxMC;                 ///< MC pion momentum x
+        float           m_piZeroPyMC;                 ///< MC pion momentum y
+        float           m_piZeroPzMC;                 ///< MC pion momentum z
+        float           m_piZeroPMC;                  ///< MC pion total momentum
+        float           m_piZeroMassReco;             ///< Reco pion mass
+        float           m_piZeroEnergyReco;           ///< Reco pion energy
+        float           m_piZeroPxReco;               ///< Reco pion momentum x
+        float           m_piZeroPyReco;               ///< Reco pion momentum y
+        float           m_piZeroPzReco;               ///< Reco pion momentum z
+        float           m_piZeroPReco;                ///< Reco pion total momentum
+        float           m_piZeroMassCheatedPatRec;    ///< Cheated pat rec pion mass
+        float           m_piZeroEnergyCheatedPatRec;  ///< Cheated pat rec pion energy
+        float           m_piZeroPxCheatedPatRec;      ///< Cheated pat rec pion momentum x
+        float           m_piZeroPyCheatedPatRec;      ///< Cheated pat rec pion momentum y
+        float           m_piZeroPzCheatedPatRec;      ///< Cheated pat rec pion momentum z
+        float           m_piZeroPCheatedPatRec;       ///< Cheated pat rec pion total momentum
     };
 
     typedef std::vector<AnalysisInfo> AnalysisInfoVector;
@@ -337,6 +397,34 @@ inline float PiZeroAnalysisAlgorithm::MatchedParticle::GetRecoPz() const
 }
 
 //------------------------------------------------------------------------------------------------------------------------------------------
+
+inline float PiZeroAnalysisAlgorithm::MatchedParticle::GetCheatedPatRecEnergy() const
+{
+    return m_cheatedPatRecEnergy;
+}
+
+//------------------------------------------------------------------------------------------------------------------------------------------
+
+inline float PiZeroAnalysisAlgorithm::MatchedParticle::GetCheatedPatRecPx() const
+{
+   return m_cheatedPatRecPx;
+}
+
+//------------------------------------------------------------------------------------------------------------------------------------------
+
+inline float PiZeroAnalysisAlgorithm::MatchedParticle::GetCheatedPatRecPy() const
+{
+   return m_cheatedPatRecPy;
+}
+
+//------------------------------------------------------------------------------------------------------------------------------------------
+
+inline float PiZeroAnalysisAlgorithm::MatchedParticle::GetCheatedPatRecPz() const
+{
+   return m_cheatedPatRecPz;
+}
+
+//------------------------------------------------------------------------------------------------------------------------------------------
 //------------------------------------------------------------------------------------------------------------------------------------------
 
 inline PiZeroAnalysisAlgorithm::MatchedParticle PiZeroAnalysisAlgorithm::AnalysisInfo::GetMatch1() const
@@ -433,6 +521,48 @@ inline float PiZeroAnalysisAlgorithm::AnalysisInfo::GetPiZeroPzReco() const
 inline float PiZeroAnalysisAlgorithm::AnalysisInfo::GetPiZeroPReco() const
 {
     return m_piZeroPReco;
+}
+
+//------------------------------------------------------------------------------------------------------------------------------------------
+
+inline float PiZeroAnalysisAlgorithm::AnalysisInfo::GetPiZeroMassCheatedPatRec() const
+{
+    return m_piZeroMassCheatedPatRec;
+}
+
+//------------------------------------------------------------------------------------------------------------------------------------------
+
+inline float PiZeroAnalysisAlgorithm::AnalysisInfo::GetPiZeroEnergyCheatedPatRec() const
+{
+    return m_piZeroEnergyCheatedPatRec;
+}
+
+//------------------------------------------------------------------------------------------------------------------------------------------
+
+inline float PiZeroAnalysisAlgorithm::AnalysisInfo::GetPiZeroPxCheatedPatRec() const
+{
+    return m_piZeroPxCheatedPatRec;
+}
+
+//------------------------------------------------------------------------------------------------------------------------------------------
+
+inline float PiZeroAnalysisAlgorithm::AnalysisInfo::GetPiZeroPyCheatedPatRec() const
+{
+    return m_piZeroPyCheatedPatRec;
+}
+
+//------------------------------------------------------------------------------------------------------------------------------------------
+
+inline float PiZeroAnalysisAlgorithm::AnalysisInfo::GetPiZeroPzCheatedPatRec() const
+{
+    return m_piZeroPzCheatedPatRec;
+}
+
+//------------------------------------------------------------------------------------------------------------------------------------------
+
+inline float PiZeroAnalysisAlgorithm::AnalysisInfo::GetPiZeroPCheatedPatRec() const
+{
+    return m_piZeroPCheatedPatRec;
 }
 
 } // namespace lar_content

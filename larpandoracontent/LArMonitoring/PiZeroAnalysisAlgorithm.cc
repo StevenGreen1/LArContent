@@ -287,10 +287,12 @@ std::cout << "PiZeroAnalysisAlgorithm::FillMatchedParticleInfo" << std::endl;
     {
         std::cout << "Missing MC particle in map" << std::endl;
     }
-    const int nMCHits(mcParticleToHitsMap.at(pMCParticle).size());
+//    const int nMCHits(mcParticleToHitsMap.at(pMCParticle).size());
+    CaloHitList mcCaloHitList(mcParticleToHitsMap.at(pMCParticle));
 
     const Pfo *pBestMatch(nullptr);
     int nSharedHits(0);
+    CaloHitList sharedCaloHitList;
 
     if (mcParticleToPfoHitSharingMap.find(pMCParticle) == mcParticleToPfoHitSharingMap.end())
     {
@@ -301,13 +303,16 @@ std::cout << "PiZeroAnalysisAlgorithm::FillMatchedParticleInfo" << std::endl;
     {
         if (pair.second.size() > nSharedHits)
         {
+            sharedCaloHitList = pair.second;
             nSharedHits = pair.second.size();
             pBestMatch = pair.first;
         }
     }
 
-    const int nPfoHits(pfoToHitsMap.at(pBestMatch).size());
-    return MatchedParticle(pMCParticle, pBestMatch, nMCHits, nPfoHits, nSharedHits);
+//    const int nPfoHits(pfoToHitsMap.at(pBestMatch).size());
+    CaloHitList pfoCaloHitList(pfoToHitsMap.at(pBestMatch));
+
+    return MatchedParticle(pMCParticle, pBestMatch, mcCaloHitList, pfoCaloHitList, sharedCaloHitList);
 }
 
 //------------------------------------------------------------------------------------------------------------------------------------------
@@ -334,6 +339,7 @@ void PiZeroAnalysisAlgorithm::WriteToTree(AnalysisInfoVector &analysisInfoVector
         PANDORA_MONITORING_API(SetTreeVariable(this->GetPandora(), m_treeName.c_str(), "nMCHitsPhoton2", analysisInfo.GetMatch2().GetNMCHits()));
         PANDORA_MONITORING_API(SetTreeVariable(this->GetPandora(), m_treeName.c_str(), "nPfoHitsPhoton2", analysisInfo.GetMatch2().GetNPfoHits()));
         PANDORA_MONITORING_API(SetTreeVariable(this->GetPandora(), m_treeName.c_str(), "SharedHitsPhoton2", analysisInfo.GetMatch2().GetSharedHits()));
+        PANDORA_MONITORING_API(SetTreeVariable(this->GetPandora(), m_treeName.c_str(), "Photon2EnergyMC", analysisInfo.GetMatch2().GetMCParticle()->GetEnergy()));
         PANDORA_MONITORING_API(SetTreeVariable(this->GetPandora(), m_treeName.c_str(), "Photon2PxMC", analysisInfo.GetMatch2().GetMCParticle()->GetMomentum().GetX()));
         PANDORA_MONITORING_API(SetTreeVariable(this->GetPandora(), m_treeName.c_str(), "Photon2PyMC", analysisInfo.GetMatch2().GetMCParticle()->GetMomentum().GetY()));
         PANDORA_MONITORING_API(SetTreeVariable(this->GetPandora(), m_treeName.c_str(), "Photon2PzMC", analysisInfo.GetMatch2().GetMCParticle()->GetMomentum().GetZ()));
@@ -393,12 +399,12 @@ StatusCode PiZeroAnalysisAlgorithm::ReadSettings(const TiXmlHandle xmlHandle)
 //------------------------------------------------------------------------------------------------------------------------------------------
 //------------------------------------------------------------------------------------------------------------------------------------------
 
-PiZeroAnalysisAlgorithm::MatchedParticle::MatchedParticle(const MCParticle *pMCParticle, const Pfo *pPfo, const int nMCHits, const int nPfoHits, const int nSharedHits) :
+PiZeroAnalysisAlgorithm::MatchedParticle::MatchedParticle(const MCParticle *pMCParticle, const Pfo *pPfo, CaloHitList &mcCaloHitList, CaloHitList &pfoCaloHitList, CaloHitList &sharedCaloHitList) :
     m_pMCParticle(pMCParticle),
     m_pMatchedPfo(pPfo),
-    m_nMCHits(nMCHits),
-    m_nPfoHits(nPfoHits),
-    m_nSharedHits(nSharedHits),
+    m_nMCHits(mcCaloHitList.size()),
+    m_nPfoHits(pfoCaloHitList.size()),
+    m_nSharedHits(sharedCaloHitList.size()),
     m_recoEnergy(std::numeric_limits<float>::max()),
     m_recoPx(std::numeric_limits<float>::max()),
     m_recoPy(std::numeric_limits<float>::max()),
@@ -494,7 +500,9 @@ void PiZeroAnalysisAlgorithm::AnalysisInfo::CalculatePiZeroMasses()
     if (m_piZeroEnergyMC > m_piZeroPMC)
         m_piZeroMassMC = std::sqrt(m_piZeroEnergyMC*m_piZeroEnergyMC - m_piZeroPMC*m_piZeroPMC);
 
-    // Reco
+    // Reco E + Cheated MC
+
+    // Reco E + Reco MC
     CartesianVector recoMomentum1(m_photon1.GetRecoPx(), m_photon1.GetRecoPy(), m_photon1.GetRecoPz());
     const float recoEnergy1(m_photon1.GetRecoEnergy());
 
