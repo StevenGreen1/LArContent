@@ -104,6 +104,23 @@ std::cout << "pPfo->GetVertexList().empty() " << pPrimaryPfo->GetVertexList().si
         PANDORA_MONITORING_API(VisualizeClusters(this->GetPandora(), &clusterListV, "HitsV", AUTO));
         PANDORA_MONITORING_API(VisualizeClusters(this->GetPandora(), &clusterListW, "HitsW", AUTO));
         PANDORA_MONITORING_API(VisualizeClusters(this->GetPandora(), &clusterList3D, "Hits3D", AUTO));
+
+        const VertexList *pVertexListCurrent(nullptr);
+        const VertexList *pVertexListNamed(nullptr);
+        VertexList vertexListGhost;
+
+        PANDORA_THROW_RESULT_IF(STATUS_CODE_SUCCESS, !=, PandoraContentApi::GetCurrentList(*this, pVertexListCurrent));
+        PANDORA_THROW_RESULT_IF(STATUS_CODE_SUCCESS, !=, PandoraContentApi::GetList(*this, m_vertexListName, pVertexListNamed));
+        const Vertex *pVertex3(LArPfoHelper::GetVertex(pPrimaryPfo));
+        vertexListGhost.push_back(pVertex3);
+
+std::cout << "There are " << pVertexListCurrent->size() << " vertices in the current list" << std::endl;
+std::cout << "There are " << pVertexListNamed->size() << " vertices in the named list" << std::endl;
+std::cout << "There are " << vertexListGhost.size() << " vertices in the ghost list" << std::endl;
+
+        PANDORA_MONITORING_API(VisualizeVertices(this->GetPandora(), pVertexListCurrent, "CurrentVertices", RED));
+        PANDORA_MONITORING_API(VisualizeVertices(this->GetPandora(), pVertexListNamed, "NamedVertices", BLUE));
+        PANDORA_MONITORING_API(VisualizeVertices(this->GetPandora(), &vertexListGhost, "GhostVertices", GREEN));
         PANDORA_MONITORING_API(ViewEvent(this->GetPandora()));
 
         if (m_keepStartVertex)
@@ -116,8 +133,6 @@ std::cout << "pPfo->GetVertexList().empty() " << pPrimaryPfo->GetVertexList().si
                 {
 std::cout << "pVertex->GetPosition() : " << pVertex->GetPosition() << std::endl;
                     PANDORA_THROW_RESULT_IF(STATUS_CODE_SUCCESS, !=, PandoraContentApi::RemoveFromPfo(*this, pPrimaryPfo, pVertex));
-
-
                     PANDORA_THROW_RESULT_IF(STATUS_CODE_SUCCESS, !=, PandoraContentApi::Delete<Vertex>(*this, pVertex));
                 }
             }
@@ -131,10 +146,11 @@ std::cout << "pVertex->GetPosition() : " << pVertex->GetPosition() << std::endl;
             parameters.m_vertexLabel = VERTEX_START;
             parameters.m_vertexType = VERTEX_3D;
 
-            const Vertex *pVertex(nullptr);
-            PANDORA_THROW_RESULT_IF(STATUS_CODE_SUCCESS, !=, PandoraContentApi::Vertex::Create(*this, parameters, pVertex));
-            PANDORA_THROW_RESULT_IF(STATUS_CODE_SUCCESS, !=, PandoraContentApi::AddToPfo(*this, pPrimaryPfo, pVertex));
+            const Vertex *pVertex2(nullptr);
+            PANDORA_THROW_RESULT_IF(STATUS_CODE_SUCCESS, !=, PandoraContentApi::Vertex::Create(*this, parameters, pVertex2));
+            PANDORA_THROW_RESULT_IF(STATUS_CODE_SUCCESS, !=, PandoraContentApi::AddToPfo(*this, pPrimaryPfo, pVertex2));
             PANDORA_THROW_RESULT_IF(STATUS_CODE_SUCCESS, !=, PandoraContentApi::SaveList<Vertex>(*this, m_vertexListName));
+            PANDORA_THROW_RESULT_IF(STATUS_CODE_SUCCESS, !=, PandoraContentApi::ReplaceCurrentList<Vertex>(*this, m_vertexListName));
         }
 
         neutrinoPfos.push_back(pPfo);
