@@ -46,8 +46,10 @@ StatusCode TestBeamParticleCreationAlgorithm::Run()
         const Pfo *pPrimaryPfo(nullptr);
         CartesianVector positionMinZCaloHit(std::numeric_limits<float>::max(), std::numeric_limits<float>::max(), std::numeric_limits<float>::max());
 
+std::cout << "Number of daughtter pfos : " << daughterList.size() << std::endl;
         for (const Pfo *const pDaughterPfo : daughterList)
         {
+std::cout << "Looping over daughter pfos" << std::endl;
             CaloHitList collectedHits;
             LArPfoHelper::GetCaloHits(pDaughterPfo, TPC_3D, collectedHits);
 
@@ -55,6 +57,7 @@ StatusCode TestBeamParticleCreationAlgorithm::Run()
             {
                 if (pCaloHit->GetPositionVector().GetZ() < positionMinZCaloHit.GetZ())
                 {
+std::cout << "Primary candidate found" << std::endl;
                     positionMinZCaloHit = pCaloHit->GetPositionVector();
                     pPrimaryPfo = pDaughterPfo;
                 }
@@ -66,9 +69,11 @@ StatusCode TestBeamParticleCreationAlgorithm::Run()
             if (pPrimaryDaughterPfo == pPrimaryPfo)
                 continue;
 
+std::cout << "Parent-daughter hierarchy setting" << std::endl;
             PANDORA_THROW_RESULT_IF(STATUS_CODE_SUCCESS, !=, PandoraContentApi::SetPfoParentDaughterRelationship(*this, pPrimaryPfo, pPrimaryDaughterPfo));
         }
 
+std::cout << "Primary particle type: " << pPrimaryPfo->GetParticleId() << std::endl;
         // ATTN: If the primary pfo is shower like, the target beam particle is most likely an electron/positron.  If the primary pfo is track like, the target
         // beam particle is most likely a pion as pion interactions are more frequent than proton, kaon and muon interactions in the CERN test beam.
         if (std::abs(pPrimaryPfo->GetParticleId()) != E_MINUS)
@@ -77,14 +82,44 @@ StatusCode TestBeamParticleCreationAlgorithm::Run()
             pfoMetadata.m_particleId = PI_PLUS;
             PANDORA_RETURN_RESULT_IF(STATUS_CODE_SUCCESS, !=, PandoraContentApi::ParticleFlowObject::AlterMetadata(*this, pPrimaryPfo, pfoMetadata));
         }
+std::cout << "Primary particle type: " << pPrimaryPfo->GetParticleId() << std::endl;
+
+        ClusterList clusterListU;
+        LArPfoHelper::GetClusters(pPrimaryPfo, TPC_VIEW_U, clusterListU);
+
+        ClusterList clusterListV;
+        LArPfoHelper::GetClusters(pPrimaryPfo, TPC_VIEW_V, clusterListV);
+
+        ClusterList clusterListW;
+        LArPfoHelper::GetClusters(pPrimaryPfo, TPC_VIEW_W, clusterListW);
+
+        ClusterList clusterList3D;
+        LArPfoHelper::GetClusters(pPrimaryPfo, TPC_3D, clusterList3D);
+
+std::cout << "pPfo->GetVertexList().empty() " << pPrimaryPfo->GetVertexList().size() << std::endl;
+
+
+        PANDORA_MONITORING_API(SetEveDisplayParameters(this->GetPandora(), true, DETECTOR_VIEW_XZ, -1.f, 1.f, 1.f));
+        PANDORA_MONITORING_API(VisualizeClusters(this->GetPandora(), &clusterListU, "HitsU", AUTO));
+        PANDORA_MONITORING_API(VisualizeClusters(this->GetPandora(), &clusterListV, "HitsV", AUTO));
+        PANDORA_MONITORING_API(VisualizeClusters(this->GetPandora(), &clusterListW, "HitsW", AUTO));
+        PANDORA_MONITORING_API(VisualizeClusters(this->GetPandora(), &clusterList3D, "Hits3D", AUTO));
+        PANDORA_MONITORING_API(ViewEvent(this->GetPandora()));
 
         if (m_keepStartVertex)
         {
             if (!m_keepInteractionVertex)
             {
                 const Vertex *const pVertex(LArPfoHelper::GetVertex(pPrimaryPfo));
-                PANDORA_THROW_RESULT_IF(STATUS_CODE_SUCCESS, !=, PandoraContentApi::RemoveFromPfo(*this, pPrimaryPfo, pVertex));
-                PANDORA_THROW_RESULT_IF(STATUS_CODE_SUCCESS, !=, PandoraContentApi::Delete<Vertex>(*this, pVertex));
+
+                if (pVertex)
+                {
+std::cout << "pVertex->GetPosition() : " << pVertex->GetPosition() << std::endl;
+                    PANDORA_THROW_RESULT_IF(STATUS_CODE_SUCCESS, !=, PandoraContentApi::RemoveFromPfo(*this, pPrimaryPfo, pVertex));
+
+
+                    PANDORA_THROW_RESULT_IF(STATUS_CODE_SUCCESS, !=, PandoraContentApi::Delete<Vertex>(*this, pVertex));
+                }
             }
 
             std::string vertexListName;
