@@ -24,6 +24,18 @@ public:
      */
     CutPfoCharacterisationAlgorithm();
 
+    /**
+     *  @brief  Destructor
+     */
+    ~CutPfoCharacterisationAlgorithm();
+
+    /**
+     *  @brief  Use MC to find out if really track
+     *
+     *  @param  pCluster cluster
+     */
+    bool GetTruthIsTrack(Cluster *const pCluster) const;
+
 private:
     bool IsClearTrack(const pandora::Cluster *const pCluster) const;
     bool IsClearTrack(const pandora::ParticleFlowObject *const pPfo) const;
@@ -36,6 +48,11 @@ private:
     float                   m_dTdLWidthRatioCut;            ///< The maximum ratio of transverse fit gradient width to straight line length to qualify as a track
     float                   m_vertexDistanceRatioCut;       ///< The maximum ratio of vertex separation to straight line length to qualify as a track
     float                   m_showerWidthRatioCut;          ///< The maximum ratio of shower fit width to straight line length to qualify as a track
+
+    bool                    m_writeToTree;                  ///< Write to tree
+    bool                    m_visualizeTruth;               ///< Visualize truth info
+    std::string             m_treeName;                     ///< Name of output tree
+    std::string             m_fileName;                     ///< Name of output file
 };
 
 } // namespace lar_content
