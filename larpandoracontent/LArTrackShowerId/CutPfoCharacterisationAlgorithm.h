@@ -34,7 +34,7 @@ public:
      *
      *  @param  pCluster cluster
      */
-    bool GetTruthIsTrack(Cluster *const pCluster) const;
+    bool GetTruthIsTrack(const pandora::Cluster *const pCluster) const;
 
 private:
     bool IsClearTrack(const pandora::Cluster *const pCluster) const;

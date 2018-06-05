@@ -129,9 +129,9 @@ bool CutPfoCharacterisationAlgorithm::IsClearTrack(const Cluster *const pCluster
 
 //------------------------------------------------------------------------------------------------------------------------------------------
 
-bool CutPfoCharacterisationAlgorithm::GetTruthIsTrack(Cluster *const pCluster) const
+bool CutPfoCharacterisationAlgorithm::GetTruthIsTrack(const Cluster *const pCluster) const
 {
-    CaloHitList &caloHitList;
+    CaloHitList caloHitList;
     pCluster->GetOrderedCaloHitList().FillCaloHitList(caloHitList);
 
     int nHitsTrack(0), nHitsShower(0);
