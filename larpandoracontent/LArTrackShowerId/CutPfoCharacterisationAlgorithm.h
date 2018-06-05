@@ -10,6 +10,10 @@
 
 #include "larpandoracontent/LArTrackShowerId/PfoCharacterisationBaseAlgorithm.h"
 
+#ifdef MONITORING
+#include "PandoraMonitoringApi.h"
+#endif
+
 namespace lar_content
 {
 
