@@ -37,8 +37,11 @@ public:
      *  @brief  Use MC to find out if really track
      *
      *  @param  pCluster cluster
+     *  @param  nTrackHits number of track hits in cluster
+     *  @param  nShowerHits number of shower hits in cluster
+     *  @param  nBadHits number of bad (no main MC) hits in cluster
      */
-    bool GetTruthIsTrack(const pandora::Cluster *const pCluster) const;
+    bool GetTruthIsTrack(const pandora::Cluster *const pCluster, int &nTrackHits, int &nShowerHits, int &nBadHits) const;
 
 private:
     bool IsClearTrack(const pandora::Cluster *const pCluster) const;
