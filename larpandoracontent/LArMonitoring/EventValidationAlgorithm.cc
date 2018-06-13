@@ -208,6 +208,8 @@ void EventValidationAlgorithm::ProcessOutput(const ValidationInfo &validationInf
 #ifdef MONITORING
         const CartesianVector &targetVertex(LArMCParticleHelper::GetParentMCParticle(pMCPrimary)->GetVertex());
         const float targetVertexX(targetVertex.GetX()), targetVertexY(targetVertex.GetY()), targetVertexZ(targetVertex.GetZ());
+        const CartesianVector &targetEndpoint(LArMCParticleHelper::GetParentMCParticle(pMCPrimary)->GetEndpoint());
+        const float targetEndpointX(targetEndpoint.GetX()), targetEndpointY(targetEndpoint.GetY()), targetEndpointZ(targetEndpoint.GetZ());
 #endif
         targetSS << (!isTargetPrimary ? "(Non target) " : "")
                  << "PrimaryId " << mcPrimaryIndex
@@ -349,6 +351,9 @@ void EventValidationAlgorithm::ProcessOutput(const ValidationInfo &validationInf
             PANDORA_MONITORING_API(SetTreeVariable(this->GetPandora(), m_treeName.c_str(), "targetVertexX", targetVertexX));
             PANDORA_MONITORING_API(SetTreeVariable(this->GetPandora(), m_treeName.c_str(), "targetVertexY", targetVertexY));
             PANDORA_MONITORING_API(SetTreeVariable(this->GetPandora(), m_treeName.c_str(), "targetVertexZ", targetVertexZ));
+            PANDORA_MONITORING_API(SetTreeVariable(this->GetPandora(), m_treeName.c_str(), "targetEndpointX", targetEndpointX));
+            PANDORA_MONITORING_API(SetTreeVariable(this->GetPandora(), m_treeName.c_str(), "targetEndpointY", targetEndpointY));
+            PANDORA_MONITORING_API(SetTreeVariable(this->GetPandora(), m_treeName.c_str(), "targetEndpointZ", targetEndpointZ));
             PANDORA_MONITORING_API(SetTreeVariable(this->GetPandora(), m_treeName.c_str(), "recoVertexX", recoVertexX));
             PANDORA_MONITORING_API(SetTreeVariable(this->GetPandora(), m_treeName.c_str(), "recoVertexY", recoVertexY));
             PANDORA_MONITORING_API(SetTreeVariable(this->GetPandora(), m_treeName.c_str(), "recoVertexZ", recoVertexZ));
