@@ -362,7 +362,7 @@ BdtBeamParticleIdTool::Plane::Plane(const CartesianVector &normal, const Cartesi
 
 //------------------------------------------------------------------------------------------------------------------------------------------
 
-CartesianVector BdtBeamParticleIdTool::Plane::GetLineIntersection(const CartesianVector &point, const CartesianVector &direction) const
+CartesianVector BdtBeamParticleIdTool::Plane::GetLineIntersection(const CartesianVector &point, const CartesianVector &direction, bool print) const
 {
     if (std::fabs(direction.GetDotProduct(m_unitNormal)) < std::numeric_limits<float>::epsilon())
         return CartesianVector(std::numeric_limits<float>::max(), std::numeric_limits<float>::max(), std::numeric_limits<float>::max());
@@ -373,6 +373,20 @@ CartesianVector BdtBeamParticleIdTool::Plane::GetLineIntersection(const Cartesia
         throw StatusCodeException(STATUS_CODE_OUT_OF_RANGE);
 
     const double t(-1. * (static_cast<double>(point.GetDotProduct(m_unitNormal)) + m_d) / static_cast<double>(denominator));
+
+    if (print)
+    {
+        std::cout << "direction   : " << direction << std::endl;
+        std::cout << "m_unitNormal: " << m_unitNormal << std::endl;
+        std::cout << "denominator (direction.GetDotProduct(m_unitNormal)) : " << denominator << std::endl;
+        std::cout << "point       : " << point << std::endl;
+        std::cout << "point.GetDotProduct(m_unitNormal)                                           : " << point.GetDotProduct(m_unitNormal) << std::endl;
+        std::cout << "point.GetDotProduct(m_unitNormal) + m_d                                     : " << point.GetDotProduct(m_unitNormal) + m_d << std::endl;
+        std::cout << "m_d                                                                         : " << m_d << std::endl;
+        std::cout << "t (-1.f * (point.GetDotProduct(m_unitNormal) + m_d) / denominator)          : " << t << std::endl;
+        std::cout << "Intercept   : " << (point + (direction * t)) << std::endl;
+    }
+
     return (point + (direction * t));
 }
 
@@ -584,6 +598,21 @@ void BdtBeamParticleIdTool::SliceFeatures::GetLArTPCIntercepts(const CartesianVe
     }
     else
     {
+std::cout << std::setprecision(20);
+std::cout << "Min X Plane " << m_sliceFeatureParameters.GetLArTPCMinX() << std::endl;
+std::cout << "Max X Plane " << m_sliceFeatureParameters.GetLArTPCMaxX() << std::endl;
+std::cout << "Min Y Plane " << m_sliceFeatureParameters.GetLArTPCMinY() << std::endl;
+std::cout << "Max Y Plane " << m_sliceFeatureParameters.GetLArTPCMaxY() << std::endl;
+std::cout << "Min Z Plane " << m_sliceFeatureParameters.GetLArTPCMinZ() << std::endl;
+std::cout << "Max Z Plane " << m_sliceFeatureParameters.GetLArTPCMaxZ() << std::endl;
+
+        for (const Plane &plane : m_sliceFeatureParameters.GetPlanes())
+        {
+            const CartesianVector intercept(plane.GetLineIntersection(a0, lineUnitVector, true));
+            bool contained(this->IsContained(intercept));
+            std::cout << "Intercept " << intercept << ", contained ? " << contained << std::endl;
+        }
+
         std::cout << "BdtBeamParticleIdTool::SliceFeatures::GetLArTPCIntercepts - inconsistent number of intercepts between a line and the LArTPC" << std::endl;
         throw StatusCodeException(STATUS_CODE_NOT_ALLOWED);
     }

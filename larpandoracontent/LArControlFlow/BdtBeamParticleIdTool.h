@@ -70,7 +70,7 @@ private:
          *  @param  point a point on the line
          *  @param  direction vector pointing along the line
          */
-        pandora::CartesianVector GetLineIntersection(const pandora::CartesianVector &point, const pandora::CartesianVector &direction) const;
+        pandora::CartesianVector GetLineIntersection(const pandora::CartesianVector &point, const pandora::CartesianVector &direction, bool print = false) const;
 
     private:
         pandora::CartesianVector      m_unitNormal;                         ///< Unit normal to plane
