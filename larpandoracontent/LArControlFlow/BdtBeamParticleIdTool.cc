@@ -376,15 +376,17 @@ CartesianVector BdtBeamParticleIdTool::Plane::GetLineIntersection(const Cartesia
 
     if (print)
     {
-        std::cout << "direction   : " << direction << std::endl;
-        std::cout << "m_unitNormal: " << m_unitNormal << std::endl;
-        std::cout << "denominator (direction.GetDotProduct(m_unitNormal)) : " << denominator << std::endl;
-        std::cout << "point       : " << point << std::endl;
+        std::cout << "direction                                                                   : " << direction << std::endl;
+        std::cout << "m_unitNormal                                                                : " << m_unitNormal << std::endl;
+        std::cout << "denominator (direction.GetDotProduct(m_unitNormal))                         : " << denominator << std::endl;
+        std::cout << "static_cast<double>(denominator)                                            : " << static_cast<double>(denominator) << std::endl;
+        std::cout << "point                                                                       : " << point << std::endl;
         std::cout << "point.GetDotProduct(m_unitNormal)                                           : " << point.GetDotProduct(m_unitNormal) << std::endl;
-        std::cout << "point.GetDotProduct(m_unitNormal) + m_d                                     : " << point.GetDotProduct(m_unitNormal) + m_d << std::endl;
+        std::cout << "static_cast<double>(point.GetDotProduct(m_unitNormal))                      : " << static_cast<double>(point.GetDotProduct(m_unitNormal)) << std::endl;
+        std::cout << "static_cast<double>(point.GetDotProduct(m_unitNormal)) + m_d                : " << static_cast<double>(point.GetDotProduct(m_unitNormal)) + m_d << std::endl;
         std::cout << "m_d                                                                         : " << m_d << std::endl;
         std::cout << "t (-1.f * (point.GetDotProduct(m_unitNormal) + m_d) / denominator)          : " << t << std::endl;
-        std::cout << "Intercept   : " << (point + (direction * t)) << std::endl;
+        std::cout << "Intercept                                                                   : " << (point + (direction * t)) << std::endl;
     }
 
     return (point + (direction * t));
