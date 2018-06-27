@@ -101,14 +101,21 @@ bool CutPfoCharacterisationAlgorithm::IsClearTrack(const Cluster *const pCluster
             showerWidthRatioCutPass = true;
     }
 
-    int nTrackHits(0), nShowerHits(0), nBadHits(0);
-    const int isTrack(this->GetTruthIsTrack(pCluster, nTrackHits, nShowerHits, nBadHits));
     int isRecoTrack(1);
 
     if (!straightLineLenghtOk || dTdLWidthRatioCutPass || vertexDistanceRatioCutPass || showerWidthRatioCutPass)
     {
         isRecoTrack = 0;
     }
+
+    std::cout << "straightLineLength   : " << straightLineLength << std::endl;
+    std::cout << "dTdLWidthRatio       : " << (straightLineLenghtOk ? dTdLWidthRatio : -1.f) << std::endl;
+    std::cout << "vertexDistanceRatio  : " << (straightLineLenghtOk ? (vertexDistance / straightLineLength) : -1.f) << std::endl;
+    std::cout << "showerWidthRatio     : " << (straightLineLenghtOk ? showerWidthRatio : -1.f) << std::endl;
+    std::cout << "Cuts-Shower          : LT " << m_maxShowerLengthCut << ", GT " << m_dTdLWidthRatioCut << ", GT " << m_vertexDistanceRatioCut << ", GT " << m_showerWidthRatioCut << ". IsRecoTrack " << isRecoTrack << std::endl;
+
+    int nTrackHits(0), nShowerHits(0), nBadHits(0);
+    const int isTrack(this->GetTruthIsTrack(pCluster, nTrackHits, nShowerHits, nBadHits));
 
     if (m_writeToTree)
     {
@@ -150,8 +157,15 @@ bool CutPfoCharacterisationAlgorithm::GetTruthIsTrack(const Cluster *const pClus
     nShowerHits = 0;
     nBadHits = 0;
 
+    CaloHitList caloHitListTrack;
+    CaloHitList caloHitListShower;
+    CaloHitList caloHitListBad;
+
+    HitType hitType(TPC_VIEW_U);
+
     for (const CaloHit *const pCaloHit : caloHitList)
     {
+        hitType = pCaloHit->GetHitType();
         try
         {
             const MCParticle *const pHitParticle(MCParticleHelper::GetMainMCParticle(pCaloHit));
@@ -160,15 +174,18 @@ bool CutPfoCharacterisationAlgorithm::GetTruthIsTrack(const Cluster *const pClus
             if (std::fabs(mcParticleId) == 11 || mcParticleId == 22)
             {
                 nShowerHits++;
+                caloHitListShower.push_back(pCaloHit);
             }
             else
             {
                 nTrackHits++;
+                caloHitListTrack.push_back(pCaloHit);
             }
         }
         catch (StatusCodeException &)
         {
             nBadHits++;
+            caloHitListBad.push_back(pCaloHit);
         }
     }
 
@@ -181,8 +198,26 @@ bool CutPfoCharacterisationAlgorithm::GetTruthIsTrack(const Cluster *const pClus
         ClusterList clusterList;
         clusterList.push_back(pCluster);
 
+        const CaloHitList *pCaloHitList(nullptr);
+        if (hitType == TPC_VIEW_U)
+        {
+            PandoraContentApi::GetList(*this, "CaloHitListU", pCaloHitList);
+        }
+        else if (hitType == TPC_VIEW_V)
+        {
+            PandoraContentApi::GetList(*this, "CaloHitListV", pCaloHitList);
+        }
+        else if (hitType == TPC_VIEW_W)
+        {
+            PandoraContentApi::GetList(*this, "CaloHitListW", pCaloHitList);
+        }
+
         PANDORA_MONITORING_API(SetEveDisplayParameters(this->GetPandora(), true, DETECTOR_VIEW_XZ, -1.f, 1.f, 1.f));
+        PANDORA_MONITORING_API(VisualizeCaloHits(this->GetPandora(), pCaloHitList, "AllHits", BLACK));
         PANDORA_MONITORING_API(VisualizeClusters(this->GetPandora(), &clusterList, "ACluster", RED, true));
+        PANDORA_MONITORING_API(VisualizeCaloHits(this->GetPandora(), &caloHitListShower, "ShowerLikeHits", BLUE));
+        PANDORA_MONITORING_API(VisualizeCaloHits(this->GetPandora(), &caloHitListTrack, "TrackLikeHits", RED));
+        PANDORA_MONITORING_API(VisualizeCaloHits(this->GetPandora(), &caloHitListBad, "BadHits", GRAY));
         PANDORA_MONITORING_API(ViewEvent(this->GetPandora()));
     }
 
