@@ -183,6 +183,18 @@ public:
         CaloHitToMCMap &hitToMCMap, MCContributionMap &mcToTrueHitListMap);
 
     /**
+     *  @brief  Select primary, reconstructable mc particle hierarchies that match given criteria.
+     *
+     *  @param  pMCParticleList the address of the list of MCParticles
+     *  @param  pCaloHitList the address of the list of CaloHits
+     *  @param  parameters validation parameters to decide when an MCParticle is considered reconstructable
+     *  @param  fCriteria a function which returns a bool (= shouldSelect) for a given input MCParticle
+     *  @param  selectedMCParticlesToHitsMap the output mapping from selected mcparticles to their hits
+     */
+    static void SelectReconstructableHierarchyMCParticles(const pandora::MCParticleList *pMCParticleList, const pandora::CaloHitList *pCaloHitList,
+        const PrimaryParameters &parameters, std::function<bool(const pandora::MCParticle *const)> fCriteria, MCContributionMap &selectedMCParticlesToHitsMap);
+
+    /**
      *  @brief  Select primary, reconstructable mc particles that match given criteria.
      *
      *  @param  pMCParticleList the address of the list of MCParticles

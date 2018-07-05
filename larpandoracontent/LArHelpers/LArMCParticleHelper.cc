@@ -276,6 +276,48 @@ void LArMCParticleHelper::GetMCParticleToCaloHitMatches(const CaloHitList *const
 
 //------------------------------------------------------------------------------------------------------------------------------------------
 
+void LArMCParticleHelper::SelectReconstructableHierarchyMCParticles(const MCParticleList *pMCParticleList, const CaloHitList *pCaloHitList, const PrimaryParameters &parameters,
+    std::function<bool(const MCParticle *const)> /*fCriteria*/, MCContributionMap &selectedMCParticlesToHitsMap)
+{
+    // Obtain map: [mc particle -> primary mc particle]
+    LArMCParticleHelper::MCRelationMap mcToPrimaryMCMap;
+    for (const MCParticle *const pMCParticle : *pMCParticleList)
+    {
+        if (mcToPrimaryMCMap.find(pMCParticle) == mcToPrimaryMCMap.end())
+            mcToPrimaryMCMap.insert(LArMCParticleHelper::MCRelationMap::value_type(pMCParticle, pMCParticle));
+    }
+
+
+    // Remove non-reconstructable hits, e.g. those downstream of a neutron
+    CaloHitList selectedCaloHitList;
+    LArMCParticleHelper::SelectCaloHits(pCaloHitList, mcToPrimaryMCMap, selectedCaloHitList, parameters.m_selectInputHits, parameters.m_maxPhotonPropagation);
+
+    // Obtain maps: [hit -> primary mc particle], [primary mc particle -> list of hits]
+    CaloHitToMCMap hitToPrimaryMCMap;
+    MCContributionMap mcToTrueHitListMap;
+    LArMCParticleHelper::GetMCParticleToCaloHitMatches(&selectedCaloHitList, mcToPrimaryMCMap, hitToPrimaryMCMap, mcToTrueHitListMap);
+
+    // Obtain vector: primary mc particles
+    MCParticleVector mcPrimaryVector;
+    for (const MCParticle *const pMCParticle : *pMCParticleList)
+    {
+        if (std::find(mcPrimaryVector.begin(), mcPrimaryVector.end(), pMCParticle) == mcPrimaryVector.end())
+            mcPrimaryVector.push_back(pMCParticle);
+    }
+    // Select MCParticles matching criteria
+    //MCParticleVector candidateTargets;
+    //LArMCParticleHelper::SelectParticlesMatchingCriteria(mcPrimaryVector, fCriteria, candidateTargets);
+
+std::cout << "pMCParticleList->size() " << pMCParticleList->size() << std::endl;
+std::cout << "mcToPrimaryMCMap.size() " << mcToPrimaryMCMap.size() << std::endl;
+std::cout << "mcPrimaryVector.size() " << mcPrimaryVector.size() << std::endl;
+
+    // Ensure the MCParticles have enough "good" hits to be reconstructed
+    LArMCParticleHelper::SelectParticlesByHitCount(mcPrimaryVector, mcToTrueHitListMap, mcToPrimaryMCMap, parameters, selectedMCParticlesToHitsMap);
+}
+
+//------------------------------------------------------------------------------------------------------------------------------------------
+
 void LArMCParticleHelper::SelectReconstructableMCParticles(const MCParticleList *pMCParticleList, const CaloHitList *pCaloHitList, const PrimaryParameters &parameters,
     std::function<bool(const MCParticle *const)> fCriteria, MCContributionMap &selectedMCParticlesToHitsMap)
 {
@@ -557,6 +599,9 @@ void LArMCParticleHelper::SelectParticlesByHitCount(const MCParticleVector &cand
 
         if (nGoodViews < parameters.m_minPrimaryGoodViews)
             continue;
+
+std::cout << "pMCTarget->GetParticleId() " << pMCTarget->GetParticleId() << std::endl;
+std::cout << "caloHitList.size() " << caloHitList.size() << std::endl;
 
         if (!selectedMCParticlesToHitsMap.insert(MCContributionMap::value_type(pMCTarget, caloHitList)).second)
             throw StatusCodeException(STATUS_CODE_ALREADY_PRESENT);
