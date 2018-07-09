@@ -222,9 +222,7 @@ void PfoHierarchyMonitoringAlgorithm::ProcessOutput(const ValidationInfo &valida
         for (const MCParticle *const pMCParticle : iter.second)
         {
             // Check the primary has a match i.e. hits
-            const bool hasMatch(mcToPfoHitSharingMap.count(pMCParticle) && !mcToPfoHitSharingMap.at(pMCParticle).empty());
-
-            if (!hasMatch)
+            if (!mcToPfoHitSharingMap.count(pMCParticle))
                 continue;
 
             mcPrimaryIndex++;
@@ -311,6 +309,60 @@ void PfoHierarchyMonitoringAlgorithm::ProcessOutput(const ValidationInfo &valida
             nTargetMatches += nPrimaryMatches;
         }
 
+        // Score calculation
+        int nParentHits(0);
+        int nParentHitsInBestMatchedPfos(0);
+        int nParentHitsInBestMatchedPfosCorrId(0);
+        int nTargetTrackMatches(0);
+        int nTargetShowerMatches(0);
+        int nCorrectTargetTrackMatches(0);
+        int nCorrectTargetShowerMatches(0);
+
+        for (int counter = 0; counter < mcPrimaryId.size(); counter++)
+        {
+            const int nHitsMC(nMCHitsTotal.at(counter));
+            const int nHitsBestMatchPfo(bestMatchPfoNSharedHitsTotal.at(counter));
+            const int matchPfoId(bestMatchPfoPdg.at(counter));
+            const int matchMCId(mcPrimaryPdg.at(counter));
+
+            nParentHits += nHitsMC;
+            nParentHitsInBestMatchedPfos += nHitsBestMatchPfo;
+
+            const bool isMCShower(std::fabs(matchMCId) == 11 || matchMCId == 22);
+            const bool isRecoShower(std::fabs(matchPfoId) == 11 || matchPfoId == 22);
+
+            if (isMCShower)
+            {
+                nTargetShowerMatches++;
+                if (isRecoShower)
+                {
+                    nCorrectTargetShowerMatches++;
+                    nParentHitsInBestMatchedPfosCorrId += nHitsBestMatchPfo;
+                }
+            }
+            else
+            {
+                nTargetTrackMatches++;
+                if (!isRecoShower)
+                {
+                    nCorrectTargetTrackMatches++;
+                    nParentHitsInBestMatchedPfosCorrId += nHitsBestMatchPfo;
+                }
+            }
+        }
+
+        const float score((float)(nParentHitsInBestMatchedPfos)/(float)(nParentHits));
+        const float scoreId((float)(nParentHitsInBestMatchedPfosCorrId)/(float)(nParentHits));
+
+        if (useInterpretedMatching)
+        {
+            targetSS << "Hits in Parent " << nParentHits << std::endl;
+            targetSS << " - Shared in best matched pfo " << nParentHitsInBestMatchedPfos << std::endl;
+            targetSS << " - Shared in best matched pfo with correct trk/shw id " << nParentHitsInBestMatchedPfosCorrId << std::endl;
+            targetSS << "Score - " << (float)(nParentHitsInBestMatchedPfos)/(float)(nParentHits) << std::endl;
+            targetSS << "Score Id - " << (float)(nParentHitsInBestMatchedPfosCorrId)/(float)(nParentHits) << std::endl;
+        }
+
         if (printToScreen) std::cout << targetSS.str() << std::endl;
 
         if (fillTree)
@@ -330,6 +382,15 @@ void PfoHierarchyMonitoringAlgorithm::ProcessOutput(const ValidationInfo &valida
             PANDORA_MONITORING_API(SetTreeVariable(this->GetPandora(), m_treeName.c_str(), "isBeamParticle", isBeamParticle));
             PANDORA_MONITORING_API(SetTreeVariable(this->GetPandora(), m_treeName.c_str(), "isCosmicRay", isCosmicRay));
             PANDORA_MONITORING_API(SetTreeVariable(this->GetPandora(), m_treeName.c_str(), "nTargetMatches", nTargetMatches));
+            PANDORA_MONITORING_API(SetTreeVariable(this->GetPandora(), m_treeName.c_str(), "nTargetTrackMatches", nTargetTrackMatches));
+            PANDORA_MONITORING_API(SetTreeVariable(this->GetPandora(), m_treeName.c_str(), "nTargetShowerMatches", nTargetShowerMatches));
+            PANDORA_MONITORING_API(SetTreeVariable(this->GetPandora(), m_treeName.c_str(), "nCorrectTargetTrackMatches", nCorrectTargetTrackMatches));
+            PANDORA_MONITORING_API(SetTreeVariable(this->GetPandora(), m_treeName.c_str(), "nCorrectTargetShowerMatches", nCorrectTargetShowerMatches));
+            PANDORA_MONITORING_API(SetTreeVariable(this->GetPandora(), m_treeName.c_str(), "nParentHits", nParentHits));
+            PANDORA_MONITORING_API(SetTreeVariable(this->GetPandora(), m_treeName.c_str(), "nParentHitsInBestMatchedPfos", nParentHitsInBestMatchedPfos));
+            PANDORA_MONITORING_API(SetTreeVariable(this->GetPandora(), m_treeName.c_str(), "nParentHitsInBestMatchedPfosCorrId", nParentHitsInBestMatchedPfosCorrId));
+            PANDORA_MONITORING_API(SetTreeVariable(this->GetPandora(), m_treeName.c_str(), "score", score));
+            PANDORA_MONITORING_API(SetTreeVariable(this->GetPandora(), m_treeName.c_str(), "scoreId", scoreId));
 
             // Match Characteristics
             PANDORA_MONITORING_API(SetTreeVariable(this->GetPandora(), m_treeName.c_str(), "mcPrimaryId", &mcPrimaryId));
@@ -358,34 +419,6 @@ void PfoHierarchyMonitoringAlgorithm::ProcessOutput(const ValidationInfo &valida
         }
 
         targetSS.str(std::string()); targetSS.clear();
-
-        int nHitsMCTotal(0);
-        int nHitsBestMatchPfoTotal(0);
-        int nHitsBestMatchPfoCorrIdTotal(0);
-
-        for (int counter = 0; counter < mcPrimaryId.size(); counter++)
-        {
-            const int nHitsMC(nMCHitsTotal.at(counter));
-            const int nHitsBestMatchPfo(bestMatchPfoNSharedHitsTotal.at(counter));
-            const int matchPfoId(bestMatchPfoPdg.at(counter));
-            const int matchMCId(mcPrimaryPdg.at(counter));
-
-            nHitsMCTotal += nHitsMC;
-            nHitsBestMatchPfoTotal += nHitsBestMatchPfo;
-
-            const bool isMCShower(std::fabs(matchMCId) == 11 || matchMCId == 22);
-            const bool isRecoShower(std::fabs(matchPfoId) == 11 || matchPfoId == 22);
-
-            if ((isMCShower && isRecoShower) || (!isMCShower && !isRecoShower))
-                nHitsBestMatchPfoCorrIdTotal += nHitsBestMatchPfo;
-        }
-
-        std::cout << "Hits in Parent " << nHitsMCTotal << std::endl;
-        std::cout << " - Shared in best matched pfo " << nHitsBestMatchPfoTotal << std::endl;
-        std::cout << " - Shared in best matched pfo with correct trk/shw id " << nHitsBestMatchPfoCorrIdTotal << std::endl;
-        std::cout << "Score - " << (float)(nHitsBestMatchPfoTotal)/(float)(nHitsMCTotal) << std::endl;
-        std::cout << "Score Id - " << (float)(nHitsBestMatchPfoCorrIdTotal)/(float)(nHitsMCTotal) << std::endl;
-
         mcPrimaryId.clear(); mcPrimaryPdg.clear(); mcPrimaryE.clear(); mcPrimaryPX.clear(); mcPrimaryPY.clear(); mcPrimaryPZ.clear();
         nMCHitsTotal.clear(); nMCHitsU.clear(); nMCHitsV.clear(); nMCHitsW.clear();
         nPrimaryMatchedPfos.clear(); bestMatchPfoId.clear(); bestMatchPfoPdg.clear();
