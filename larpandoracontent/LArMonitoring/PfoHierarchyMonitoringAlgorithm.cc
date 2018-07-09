@@ -128,7 +128,8 @@ void PfoHierarchyMonitoringAlgorithm::FillValidationInfo(const MCParticleList *c
         PfoList allConnectedPfos;
         LArPfoHelper::GetAllConnectedPfos(*pPfoList, allConnectedPfos);
         LArMCParticleHelper::PfoContributionMap pfoToHitsMap;
-        LArMCParticleHelper::GetPfoToReconstructable2DHitsMap(allConnectedPfos, validationInfo.GetAllMCParticleToHitsMap(), pfoToHitsMap);
+        //LArMCParticleHelper::GetPfoToReconstructable2DHitsMap(allConnectedPfos, validationInfo.GetAllMCParticleToHitsMap(), pfoToHitsMap);
+        LArMCParticleHelper::GetPfoToReconstructable2DHitsMap(allConnectedPfos, validationInfo.GetAllMCParticleToHitsMap(), pfoToHitsMap, false);
         validationInfo.SetPfoToHitsMap(pfoToHitsMap);
     }
 
@@ -357,6 +358,33 @@ void PfoHierarchyMonitoringAlgorithm::ProcessOutput(const ValidationInfo &valida
         }
 
         targetSS.str(std::string()); targetSS.clear();
+
+        int nHitsMCTotal(0);
+        int nHitsBestMatchPfoTotal(0);
+        int nHitsBestMatchPfoCorrIdTotal(0);
+
+        for (int counter = 0; counter < mcPrimaryId.size(); counter++)
+        {
+            const int nHitsMC(nMCHitsTotal.at(counter));
+            const int nHitsBestMatchPfo(bestMatchPfoNSharedHitsTotal.at(counter));
+            const int matchPfoId(bestMatchPfoPdg.at(counter));
+            const int matchMCId(mcPrimaryPdg.at(counter));
+
+            nHitsMCTotal += nHitsMC;
+            nHitsBestMatchPfoTotal += nHitsBestMatchPfo;
+
+            const bool isMCShower(std::fabs(matchMCId) == 11 || matchMCId == 22);
+            const bool isRecoShower(std::fabs(matchPfoId) == 11 || matchPfoId == 22);
+
+            if ((isMCShower && isRecoShower) || (!isMCShower && !isRecoShower))
+                nHitsBestMatchPfoCorrIdTotal += nHitsBestMatchPfo;
+        }
+
+        std::cout << "Hits in Parent " << nHitsMCTotal << std::endl;
+        std::cout << " - Shared in best matched pfo " << nHitsBestMatchPfoTotal << std::endl;
+        std::cout << " - Shared in best matched pfo with correct trk/shw id " << nHitsBestMatchPfoCorrIdTotal << std::endl;
+        std::cout << "Score - " << (float)(nHitsBestMatchPfoTotal)/(float)(nHitsMCTotal) << std::endl;
+        std::cout << "Score Id - " << (float)(nHitsBestMatchPfoCorrIdTotal)/(float)(nHitsMCTotal) << std::endl;
 
         mcPrimaryId.clear(); mcPrimaryPdg.clear(); mcPrimaryE.clear(); mcPrimaryPX.clear(); mcPrimaryPY.clear(); mcPrimaryPZ.clear();
         nMCHitsTotal.clear(); nMCHitsU.clear(); nMCHitsV.clear(); nMCHitsW.clear();
