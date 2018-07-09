@@ -308,10 +308,6 @@ void LArMCParticleHelper::SelectReconstructableHierarchyMCParticles(const MCPart
     //MCParticleVector candidateTargets;
     //LArMCParticleHelper::SelectParticlesMatchingCriteria(mcPrimaryVector, fCriteria, candidateTargets);
 
-std::cout << "pMCParticleList->size() " << pMCParticleList->size() << std::endl;
-std::cout << "mcToPrimaryMCMap.size() " << mcToPrimaryMCMap.size() << std::endl;
-std::cout << "mcPrimaryVector.size() " << mcPrimaryVector.size() << std::endl;
-
     // Ensure the MCParticles have enough "good" hits to be reconstructed
     LArMCParticleHelper::SelectParticlesByHitCount(mcPrimaryVector, mcToTrueHitListMap, mcToPrimaryMCMap, parameters, selectedMCParticlesToHitsMap);
 }
@@ -599,9 +595,6 @@ void LArMCParticleHelper::SelectParticlesByHitCount(const MCParticleVector &cand
 
         if (nGoodViews < parameters.m_minPrimaryGoodViews)
             continue;
-
-std::cout << "pMCTarget->GetParticleId() " << pMCTarget->GetParticleId() << std::endl;
-std::cout << "caloHitList.size() " << caloHitList.size() << std::endl;
 
         if (!selectedMCParticlesToHitsMap.insert(MCContributionMap::value_type(pMCTarget, caloHitList)).second)
             throw StatusCodeException(STATUS_CODE_ALREADY_PRESENT);

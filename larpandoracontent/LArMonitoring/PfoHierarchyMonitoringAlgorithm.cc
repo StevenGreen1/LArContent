@@ -308,9 +308,9 @@ void PfoHierarchyMonitoringAlgorithm::ProcessOutput(const ValidationInfo &valida
 
             nPrimaryMatchedPfos.push_back(nPrimaryMatches);
             nTargetMatches += nPrimaryMatches;
-
-            if (printToScreen) std::cout << targetSS.str() << std::endl;
         }
+
+        if (printToScreen) std::cout << targetSS.str() << std::endl;
 
         if (fillTree)
         {
