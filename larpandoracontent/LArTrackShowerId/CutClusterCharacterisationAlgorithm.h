@@ -57,6 +57,7 @@ private:
     float                   m_rTWidthRatioCut;              ///< The maximum ratio of transverse fit position width to straight line length to qualify as a track
     float                   m_vertexDistanceRatioCut;       ///< The maximum ratio of vertex separation to straight line length to qualify as a track
     float                   m_showerWidthRatioCut;          ///< The maximum ratio of shower fit width to straight line length to qualify as a track
+    bool                    m_cheatStep;                    ///< Use mc info to cheat step
 };
 
 } // namespace lar_content

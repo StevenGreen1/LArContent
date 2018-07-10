@@ -8,6 +8,8 @@
 
 #include "Pandora/AlgorithmHeaders.h"
 
+#include "Helpers/MCParticleHelper.h"
+
 #include "larpandoracontent/LArHelpers/LArClusterHelper.h"
 #include "larpandoracontent/LArHelpers/LArGeometryHelper.h"
 
@@ -92,6 +94,21 @@ bool CutClusterCharacterisationAlgorithm::IsClearTrack(const Cluster *const pClu
     if (pCluster->GetNCaloHits() < m_minCaloHitsCut)
         return false;
 
+    if (m_cheatStep)
+    {
+        const MCParticle *pMainMCParticle(MCParticleHelper::GetMainMCParticle(pCluster));
+        const int id(pMainMCParticle->GetParticleId());
+
+        if (std::fabs(id) == 11 || id == 22)
+        {
+            return false;
+        }
+        else
+        {
+            return true;
+        }
+    }
+
     float straightLineLength(-1.f), integratedPathLength(-1.f);
     float rTMin(+std::numeric_limits<float>::max()), rTMax(-std::numeric_limits<float>::max());
 
@@ -171,6 +188,9 @@ StatusCode CutClusterCharacterisationAlgorithm::ReadSettings(const TiXmlHandle x
 
     PANDORA_RETURN_RESULT_IF_AND_IF(STATUS_CODE_SUCCESS, STATUS_CODE_NOT_FOUND, !=, XmlHelper::ReadValue(xmlHandle,
         "ShowerWidthRatioCut", m_showerWidthRatioCut));
+
+    PANDORA_RETURN_RESULT_IF_AND_IF(STATUS_CODE_SUCCESS, STATUS_CODE_NOT_FOUND, !=, XmlHelper::ReadValue(xmlHandle,
+        "CheatStep", m_cheatStep));
 
     return ClusterCharacterisationBaseAlgorithm::ReadSettings(xmlHandle);
 }

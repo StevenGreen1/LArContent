@@ -8,6 +8,8 @@
 
 #include "Pandora/AlgorithmHeaders.h"
 
+#include "Helpers/MCParticleHelper.h"
+
 #include "larpandoracontent/LArHelpers/LArGeometryHelper.h"
 #include "larpandoracontent/LArHelpers/LArPfoHelper.h"
 
@@ -36,6 +38,21 @@ CutPfoCharacterisationAlgorithm::CutPfoCharacterisationAlgorithm() :
 
 bool CutPfoCharacterisationAlgorithm::IsClearTrack(const Cluster *const pCluster) const
 {
+    if (m_cheatStep)
+    {
+        const MCParticle *pMainMCParticle(MCParticleHelper::GetMainMCParticle(pCluster));
+        const int id(pMainMCParticle->GetParticleId());
+
+        if (std::fabs(id) == 11 || id == 22)
+        {
+            return false;
+        }
+        else
+        {
+            return true;
+        }
+    }
+
     float straightLineLength(-1.f);
     float dTdLMin(+std::numeric_limits<float>::max()), dTdLMax(-std::numeric_limits<float>::max());
 
@@ -116,6 +133,9 @@ StatusCode CutPfoCharacterisationAlgorithm::ReadSettings(const TiXmlHandle xmlHa
 
     PANDORA_RETURN_RESULT_IF_AND_IF(STATUS_CODE_SUCCESS, STATUS_CODE_NOT_FOUND, !=, XmlHelper::ReadValue(xmlHandle,
         "ShowerWidthRatioCut", m_showerWidthRatioCut));
+
+    PANDORA_RETURN_RESULT_IF_AND_IF(STATUS_CODE_SUCCESS, STATUS_CODE_NOT_FOUND, !=, XmlHelper::ReadValue(xmlHandle,
+        "CheatStep", m_cheatStep));
 
     return PfoCharacterisationBaseAlgorithm::ReadSettings(xmlHandle);
 }
