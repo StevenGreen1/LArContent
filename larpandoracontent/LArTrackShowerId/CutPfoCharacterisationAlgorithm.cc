@@ -30,7 +30,8 @@ CutPfoCharacterisationAlgorithm::CutPfoCharacterisationAlgorithm() :
     m_maxShowerLengthCut(80.f),
     m_dTdLWidthRatioCut(0.045f),
     m_vertexDistanceRatioCut(0.6f),
-    m_showerWidthRatioCut(0.2f)
+    m_showerWidthRatioCut(0.2f),
+    m_cheatStep(false)
 {
 }
 
@@ -40,10 +41,31 @@ bool CutPfoCharacterisationAlgorithm::IsClearTrack(const Cluster *const pCluster
 {
     if (m_cheatStep)
     {
-        const MCParticle *pMainMCParticle(MCParticleHelper::GetMainMCParticle(pCluster));
-        const int id(pMainMCParticle->GetParticleId());
+        CaloHitList caloHitList;
+        pCluster->GetOrderedCaloHitList().FillCaloHitList(caloHitList);
 
-        if (std::fabs(id) == 11 || id == 22)
+        int nTrkHits(0), nShwHits(0);
+
+        for (const CaloHit *const pCaloHit : caloHitList)
+        {
+            try
+            {
+                const MCParticle *pMainMCParticle(MCParticleHelper::GetMainMCParticle(pCaloHit));
+                const int id(pMainMCParticle->GetParticleId());
+
+                if (std::fabs(id) == 11 || id == 22)
+                {
+                    nShwHits++;
+                }
+                else
+                {
+                    nTrkHits++;
+                }
+            }
+            catch (...) {}
+        }
+
+        if (nShwHits > nTrkHits)
         {
             return false;
         }
