@@ -47,29 +47,12 @@ StatusCode CaloHitEventDumpAlgorithm::Run()
         try
         {
             const MCParticle *const pMCParticle(MCParticleHelper::GetMainMCParticle(pTargetCaloHit));
-            myfile << "CaloHit," << pMCParticle->GetParticleId() << std::endl;
+            const CartesianVector &position(pTargetCaloHit->GetPositionVector());
+            myfile << pMCParticle->GetParticleId() << "," << position.GetX() << "," << position.GetY() << "," << position.GetZ() << "," << pTargetCaloHit->GetInputEnergy() << std::endl;
         }
         catch(...)
         {
             continue;
-        }
-
-        TwoDHistogram twoDHistogram(m_gridSize, -1.f * m_gridDimensions/2.f,  m_gridDimensions/2.f, m_gridSize, -1.f * m_gridDimensions/2.f,  m_gridDimensions/2.f);
-
-        for (const CaloHit *pNeighbourCaloHit : wCaloHitList)
-        {
-            CartesianVector relativePosition(pNeighbourCaloHit->GetPositionVector() - pTargetCaloHit->GetPositionVector());
-            twoDHistogram.Fill(relativePosition.GetX(), relativePosition.GetZ(), pNeighbourCaloHit->GetInputEnergy());
-        }
-
-        for (int xBin = 0; xBin < twoDHistogram.GetNBinsX(); xBin++)
-        {
-            for (int yBin = 0; yBin < twoDHistogram.GetNBinsY(); yBin++)
-            {
-                const float globalBinNumber(xBin*twoDHistogram.GetNBinsX() + yBin);
-                const float content(twoDHistogram.GetBinContent(xBin, yBin));
-                myfile << globalBinNumber << "," << content << std::endl;
-            }
         }
     }
 
