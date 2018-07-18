@@ -30,8 +30,6 @@ private:
 
     std::string   m_caloHitListName;          ///< Name of input calo hit list
     std::string   m_textFileName;             ///< Name of text file
-    int           m_gridSize;                 ///< Number of bins in grid
-    float         m_gridDimensions;           ///< Physical dimension of grid
 };
 
 } // namespace lar_content

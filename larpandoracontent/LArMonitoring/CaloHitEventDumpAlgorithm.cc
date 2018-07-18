@@ -18,9 +18,7 @@ namespace lar_content
 {
 
 CaloHitEventDumpAlgorithm::CaloHitEventDumpAlgorithm() :
-    m_textFileName("CaloHitEventDump.txt"),
-    m_gridSize(28),
-    m_gridDimensions(50)
+    m_textFileName()
 {
 }
 
@@ -41,6 +39,8 @@ StatusCode CaloHitEventDumpAlgorithm::Run()
 
     std::ofstream myfile;
     myfile.open (m_textFileName.c_str(), std::ios_base::app);
+
+    myfile << "NewEvt" << std::endl;
 
     for (const CaloHit *pTargetCaloHit : wCaloHitList)
     {
@@ -67,8 +67,6 @@ StatusCode CaloHitEventDumpAlgorithm::ReadSettings(const TiXmlHandle xmlHandle)
 {
     PANDORA_RETURN_RESULT_IF(STATUS_CODE_SUCCESS, !=, XmlHelper::ReadValue(xmlHandle, "CaloHitListName", m_caloHitListName));
     PANDORA_RETURN_RESULT_IF(STATUS_CODE_SUCCESS, !=, XmlHelper::ReadValue(xmlHandle, "TextFileName", m_textFileName));
-    PANDORA_RETURN_RESULT_IF(STATUS_CODE_SUCCESS, !=, XmlHelper::ReadValue(xmlHandle, "GridSize", m_gridSize));
-    PANDORA_RETURN_RESULT_IF(STATUS_CODE_SUCCESS, !=, XmlHelper::ReadValue(xmlHandle, "GridDimensions", m_gridDimensions));
     return STATUS_CODE_SUCCESS;
 }
 
