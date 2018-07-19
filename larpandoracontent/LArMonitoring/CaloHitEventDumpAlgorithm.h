@@ -29,9 +29,10 @@ private:
     pandora::StatusCode ReadSettings(const pandora::TiXmlHandle xmlHandle);
 
     std::string   m_caloHitListName;          ///< Name of input calo hit list
-    std::string   m_textFileName;             ///< Name of text file
     int           m_gridSize;                 ///< Number of bins in grid
     float         m_gridDimensions;           ///< Physical dimension of grid
+    bool          m_useTrainingMode;          ///< Should use training mode. If true, training examples will be written to the output file
+    std::string   m_trainingOutputFile;       ///< Output file name for training examples
 };
 
 } // namespace lar_content
