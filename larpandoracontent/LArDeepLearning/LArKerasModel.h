@@ -282,8 +282,9 @@ public:
      *  @brief  Calculate the outcomes based on the data
      *
      *  @param  pDataBlock pointer to data block
+     *  @param  outputData1D output data block to fill
      */
-    Data1D CalculateOutput(DataBlock *pDataBlock);
+    void CalculateOutput(DataBlock *pDataBlock, Data1D &outputData1D);
 
     unsigned int GetNInputRows() const;
 
@@ -301,9 +302,10 @@ public:
 
     typedef std::vector<Layer *> Layers;
 
-    int        m_nLayers;    ///< The number of layers in the model
-    Layers     m_layers;     ///< The layers in the model
-    bool       m_verbose;    ///< Print stuff maybe
+    int        m_nLayers;           ///< The number of layers in the model
+    int        m_nActiveLayers;     ///< The number of layers in the model that are active in the compute output i.e. excluding dropout layers
+    Layers     m_layers;            ///< The layers in the model
+    bool       m_verbose;           ///< Print stuff maybe
 };
 
 } // namespace lar_content

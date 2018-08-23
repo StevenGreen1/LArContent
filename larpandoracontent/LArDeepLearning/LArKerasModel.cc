@@ -1,4 +1,5 @@
-/**
+/*Model::KerasModel(const std::string &inputFileName, bool verbose) :
+ *
  *  @file   larpandoracontent/LArObjects/LArKerasModel.cc
  *
  *  @brief  Implementation of the lar adaptive boost decision tree class.
@@ -17,6 +18,7 @@ namespace lar_content
 
 KerasModel::KerasModel(const std::string &inputFileName, bool verbose) :
     m_nLayers(std::numeric_limits<int>::max()),
+    m_nActiveLayers(std::numeric_limits<int>::max()),
     m_verbose(verbose)
 {
     this->LoadWeights(inputFileName);
@@ -52,19 +54,21 @@ void KerasModel::LoadWeights(const std::string &inputFileName)
 
     inputFileStream >> valueStr >> m_nLayers;
 
+    m_nActiveLayers = m_nLayers;
+
     if (m_verbose)
         std::cout << "nLayers " << m_nLayers << std::endl;
 
-    for (unsigned int layerCount = 0; layerCount < m_nLayers; m_nLayers++)
+    for (unsigned int layerCount = 0; layerCount < m_nLayers; layerCount++)
     {
         inputFileStream >> valueStr >> valueInt >> layerType;
 
         if (m_verbose)
-            std::cout << "Layer " << valueInt << " " << layerType << std::endl;
+            std::cout << "Layer " << valueInt << " " << layerType << ", layerCount = " << layerCount << std::endl;
 
         Layer *pLayer(nullptr);
 
-        if (layerType == "Convolution2D")
+        if (layerType == "Conv2D")
         {
             pLayer = new LayerConv2D();
         }
@@ -86,7 +90,8 @@ void KerasModel::LoadWeights(const std::string &inputFileName)
         }
         else if (layerType == "Dropout")
         {
-           // Dropout layer isn't needed in prediction mode
+           // Dropout layer is not needed in prediction mode
+           m_nActiveLayers--;
            continue;
         }
 
@@ -99,11 +104,13 @@ void KerasModel::LoadWeights(const std::string &inputFileName)
         pLayer->LoadWeights(inputFileStream);
         m_layers.push_back(pLayer);
     }
+
+    inputFileStream.close();
 }
 
 //------------------------------------------------------------------------------------------------------------------------------------------
 
-KerasModel::Data1D KerasModel::CalculateOutput(KerasModel::DataBlock *pDataBlock)
+void KerasModel::CalculateOutput(KerasModel::DataBlock *pDataBlock, KerasModel::Data1D &outputData1D)
 {
     if (m_verbose)
         pDataBlock->ShowName();
@@ -111,8 +118,11 @@ KerasModel::Data1D KerasModel::CalculateOutput(KerasModel::DataBlock *pDataBlock
     KerasModel::DataBlock *pInputDataBlock = pDataBlock;
     KerasModel::DataBlock *pOutputDataBlock(nullptr);
 
-    for (unsigned int layerCount = 0; layerCount < m_nLayers; m_nLayers++)
+    for (unsigned int layerCount = 0; layerCount < m_nActiveLayers; layerCount++)
     {
+        if (m_verbose)
+            std::cout << "KerasModel::CalculateOutput layer  = " << layerCount << ", name = " << m_layers.at(layerCount)->GetName() << std::endl;
+
         pOutputDataBlock = m_layers.at(layerCount)->CalculateOutput(pInputDataBlock);
 
         if (pInputDataBlock != pDataBlock)
@@ -121,14 +131,14 @@ KerasModel::Data1D KerasModel::CalculateOutput(KerasModel::DataBlock *pDataBlock
         pInputDataBlock = pOutputDataBlock;
     }
 
-    KerasModel::Data1D outputData1D(pOutputDataBlock->GetData1D());
+    outputData1D = pOutputDataBlock->GetData1D();
 
     if (m_verbose && pOutputDataBlock)
         pOutputDataBlock->ShowName();
 
     delete pOutputDataBlock;
 
-    return outputData1D;
+    return;
 }
 
 //------------------------------------------------------------------------------------------------------------------------------------------
@@ -711,7 +721,7 @@ void KerasModel::LayerConv2D::LoadWeights(std::ifstream &inputFileStream)
     std::string valueStr("");
     float value(std::numeric_limits<float>::max());
     bool skip(false);
-    inputFileStream >> m_kernelsCount >> m_nDepth >> m_nRows >> m_nCols >> m_borderMode;
+    inputFileStream >> m_nRows >> m_nCols >> m_nDepth >> m_kernelsCount >> m_borderMode;
 
     if (m_borderMode == "[")
     {
@@ -719,13 +729,26 @@ void KerasModel::LayerConv2D::LoadWeights(std::ifstream &inputFileStream)
         skip = true;
     }
 
+// This looping seems a bit funky, but it's the way the filters are written to text file
+/*
+std::cout << "Rows " << m_nRows << std::endl;
+std::cout << "Cols " << m_nCols << std::endl;
+std::cout << "Depth " << m_nDepth << std::endl;
+std::cout << "Kernels " << m_kernelsCount << std::endl;
+*/
+
+// Kernel = row, col, depth, kernel - > kernel, depth, row, col
+
     for (unsigned int kernel = 0; kernel < m_kernelsCount; kernel++)
+//    for (unsigned int row = 0; row < m_nRows; row++)
     {
         Data3D data3D;
         for (unsigned int depth = 0; depth < m_nDepth; depth++)
+//        for (unsigned int col = 0; col < m_nCols; col++)
         {
             Data2D data2D;
             for (unsigned int row = 0; row < m_nRows; row++)
+//            for (unsigned int depth = 0; depth < m_nDepth; depth++)
             {
                 if (!skip)
                 {
@@ -739,8 +762,10 @@ void KerasModel::LayerConv2D::LoadWeights(std::ifstream &inputFileStream)
 
                 Data1D data1D;
                 for (unsigned int col = 0; col < m_nCols; col++)
+//                for (unsigned int kernel = 0; kernel < m_kernelsCount; kernel++)
                 {
                     inputFileStream >> value;
+//std::cout << "(row, col, dep, kernel) = (" << row << ", " << col << ", " << depth << ", " << kernel << ") = " << value << std::endl;
                     data1D.push_back(value);
                 }
 
@@ -770,25 +795,38 @@ void KerasModel::LayerConv2D::LoadWeights(std::ifstream &inputFileStream)
 
 KerasModel::DataBlock* KerasModel::LayerConv2D::CalculateOutput(KerasModel::DataBlock* pDataBlock)
 {
+//std::cout << "m_kernels.size() " << m_kernels.size() << std::endl;
+//std::cout << "m_kernels.at(0).size() " << m_kernels.at(0).size() << std::endl;
+//std::cout << "m_kernels.at(0).at(0).size() " << m_kernels.at(0).at(0).size() << std::endl;
+//std::cout << "m_kernels.at(0).at(0).at(0).size() " << m_kernels.at(0).at(0).at(0).size() << std::endl;
+
     // ATTN: Funky divide by 2?
-    unsigned int nFilterRows(std::floor((m_kernels.at(0).at(0).size() - 1) * 0.5f));
-    unsigned int nFilterCols(std::floor((m_kernels.at(0).at(0).at(0).size() - 1) * 0.5f));
+    unsigned int startX(std::floor((m_kernels.at(0).at(0).size() - 1) * 0.5f));
+    unsigned int startY(std::floor((m_kernels.at(0).at(0).at(0).size() - 1) * 0.5f));
 
     Data3D activeData3D;
     Data3D data3D(pDataBlock->GetData3D());
 
     // Border mode asks whether to shrink grid when concolving or leave it as same size as input
-    unsigned int startX((m_borderMode == "valid") ? data3D.at(0).size() - 2 * nFilterRows : data3D.at(0).size());
-    unsigned int startY((m_borderMode == "valid") ? data3D.at(0).at(0).size() - 2 * nFilterCols : data3D.at(0).at(0).size());
+    unsigned int nOutputRows((m_borderMode == "valid") ? data3D.at(0).size() - 2 * startX : data3D.at(0).size());
+    unsigned int nOutputCols((m_borderMode == "valid") ? data3D.at(0).at(0).size() - 2 * startY : data3D.at(0).at(0).size());
+
+//std::cout << "nOutputRows " << nOutputRows << std::endl;
+//std::cout << "nOutputCols " << nOutputCols << std::endl;
+//std::cout << "startX " << startX << std::endl;
+//std::cout << "startY " << startY << std::endl;
+//std::cout << "m_borderMode " << m_borderMode << std::endl;
+
+// Kernel = row, col, depth, kernel - > kernel, depth, row, col
 
     for (unsigned int kernel = 0; kernel < m_kernels.size(); kernel++)
     {
         Data2D data2D;
         data2D.reserve(startX);
 
-        for(unsigned int depth = 0; depth < startX; depth++)
+        for(unsigned int rowOutput = 0; rowOutput < nOutputRows; rowOutput++)
         {
-            data2D.emplace_back(Data1D(startY, 0.f));
+            data2D.emplace_back(Data1D(nOutputCols, 0.f));
         }
         activeData3D.push_back(data2D);
     }
@@ -966,8 +1004,6 @@ void KerasModel::LayerDense::LoadWeights(std::ifstream &inputFileStream)
 
 KerasModel::DataBlock* KerasModel::LayerDense::CalculateOutput(KerasModel::DataBlock* pDataBlock)
 {
-    unsigned int size();
-
     KerasModel::DataBlockFlat *pDataBlockFlat = new KerasModel::DataBlockFlat(m_nNeurons, 0.f);
     KerasModel::Data1D activeData1D(pDataBlockFlat->GetData1D());
     KerasModel::Data1D data1D(pDataBlock->GetData1D());

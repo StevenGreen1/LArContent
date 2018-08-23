@@ -10,6 +10,8 @@
 
 #include "Pandora/Algorithm.h"
 
+#include "larpandoracontent/LArDeepLearning/LArKerasModel.h"
+
 namespace lar_content
 {
 
@@ -24,11 +26,27 @@ public:
      */
     CaloHitEventDumpAlgorithm();
 
+    /**
+     *  @brief  Destructor
+     */
+    ~CaloHitEventDumpAlgorithm();
+
+    /**
+     *  @brief  Function to convert Pandora histogram to Keras data block
+     *
+     *  @param  twoDHistogram histogram to convert
+     *  @param  dataBlock2D data block to populate
+     */
+    void HistogramToDataBlock(const pandora::TwoDHistogram &twoDHistogram, KerasModel::DataBlock2D &dataBlock2D);
+
 private:
     pandora::StatusCode Run();
     pandora::StatusCode ReadSettings(const pandora::TiXmlHandle xmlHandle);
 
     std::string   m_caloHitListName;          ///< Name of input calo hit list
+    bool          m_verbose;                  ///< Print model information
+    std::string   m_treeName;                 ///< Monitoring tree name
+    std::string   m_fileName;                 ///< Monitoring file name
     int           m_gridSize;                 ///< Number of bins in grid
     float         m_gridDimensions;           ///< Physical dimension of grid
     bool          m_useTrainingMode;          ///< Should use training mode. If true, training examples will be written to the output file
