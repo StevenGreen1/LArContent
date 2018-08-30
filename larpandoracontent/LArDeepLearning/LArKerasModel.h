@@ -12,6 +12,7 @@
 
 #include "larpandoracontent/LArObjects/LArMvaInterface.h"
 
+#include "Pandora/Algorithm.h"
 #include "Pandora/StatusCodes.h"
 
 #include <functional>
@@ -137,7 +138,7 @@ public:
 
         virtual void LoadWeights(std::ifstream &inputFileStream) = 0;
 
-        virtual DataBlock* CalculateOutput(DataBlock* pDataBlock) = 0;
+        virtual DataBlock* CalculateOutput(const DataBlock* pDataBlock) const = 0;
 
         virtual unsigned int GetNInputRows() const = 0;
 
@@ -158,7 +159,7 @@ public:
 
         void LoadWeights(std::ifstream &inputFileStream);
 
-        DataBlock* CalculateOutput(DataBlock* pDataBlock);
+        DataBlock* CalculateOutput(const DataBlock* pDataBlock) const;
 
         unsigned int GetNInputRows() const;
 
@@ -174,7 +175,7 @@ public:
 
         void LoadWeights(std::ifstream &inputFileStream);
 
-        DataBlock* CalculateOutput(DataBlock* pDataBlock);
+        DataBlock* CalculateOutput(const DataBlock* pDataBlock) const;
 
         unsigned int GetNInputRows() const;
 
@@ -194,7 +195,7 @@ public:
 
         void LoadWeights(std::ifstream &inputFileStream);
 
-        DataBlock* CalculateOutput(DataBlock* pDataBlock);
+        DataBlock* CalculateOutput(const DataBlock* pDataBlock) const;
 
         unsigned int GetNInputRows() const;
 
@@ -213,7 +214,7 @@ public:
 
         void LoadWeights(std::ifstream &inputFileStream);
 
-        DataBlock* CalculateOutput(DataBlock* pDataBlock);
+        DataBlock* CalculateOutput(const DataBlock* pDataBlock) const;
 
         unsigned int GetNInputRows() const;
 
@@ -258,7 +259,7 @@ public:
 
         void LoadWeights(std::ifstream &inputFileStream);
 
-        DataBlock* CalculateOutput(DataBlock* pDataBlock);
+        DataBlock* CalculateOutput(const DataBlock* pDataBlock) const;
 
         unsigned int GetNInputRows() const;
 
@@ -284,7 +285,7 @@ public:
      *  @param  pDataBlock pointer to data block
      *  @param  outputData1D output data block to fill
      */
-    void CalculateOutput(DataBlock *pDataBlock, Data1D &outputData1D);
+    void CalculateOutput(const DataBlock *pDataBlock, Data1D &outputData1D, const pandora::Algorithm *const pAlgorithm) const;
 
     unsigned int GetNInputRows() const;
 

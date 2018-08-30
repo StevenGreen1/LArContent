@@ -7,6 +7,7 @@
  *  $Log: $
  */
 
+#include "Pandora/AlgorithmHeaders.h"
 #include "Helpers/XmlHelper.h"
 
 #include "larpandoracontent/LArDeepLearning/LArKerasModel.h"
@@ -21,14 +22,21 @@ KerasModel::KerasModel(const std::string &inputFileName, bool verbose) :
     m_nActiveLayers(std::numeric_limits<int>::max()),
     m_verbose(verbose)
 {
-    this->LoadWeights(inputFileName);
+    try
+    {
+        this->LoadWeights(inputFileName);
+    }
+    catch (const StatusCodeException &statusCodeException)
+    {
+        std::cout << "KerasModel::LoadWeights - Unable to define network due to unexpected layer type" << std::endl;
+    }
 }
 
 //------------------------------------------------------------------------------------------------------------------------------------------
 
 KerasModel::~KerasModel()
 {
-    for (const Layer *pLayer : m_layers)
+    for (const Layer *const pLayer : m_layers)
         delete pLayer;
 }
 
@@ -96,10 +104,7 @@ void KerasModel::LoadWeights(const std::string &inputFileName)
         }
 
         if (!pLayer)
-        {
-            std::cout << "Unable to define network due to unexpected layer type" << std::endl;
-            //throw
-        }
+            throw StatusCodeException(STATUS_CODE_INVALID_PARAMETER);
 
         pLayer->LoadWeights(inputFileStream);
         m_layers.push_back(pLayer);
@@ -110,21 +115,30 @@ void KerasModel::LoadWeights(const std::string &inputFileName)
 
 //------------------------------------------------------------------------------------------------------------------------------------------
 
-void KerasModel::CalculateOutput(KerasModel::DataBlock *pDataBlock, KerasModel::Data1D &outputData1D)
+void KerasModel::CalculateOutput(const KerasModel::DataBlock *pDataBlock, KerasModel::Data1D &outputData1D, const pandora::Algorithm *const /*pAlgorithm*/) const
 {
-    if (m_verbose)
-        pDataBlock->ShowName();
+    const KerasModel::DataBlock *pInputDataBlock = pDataBlock;
+    const KerasModel::DataBlock *pOutputDataBlock(nullptr);
 
-    KerasModel::DataBlock *pInputDataBlock = pDataBlock;
-    KerasModel::DataBlock *pOutputDataBlock(nullptr);
-
-    for (unsigned int layerCount = 0; layerCount < m_nActiveLayers; layerCount++)
+    for (const Layer *const pLayer : m_layers)
     {
-        if (m_verbose)
-            std::cout << "KerasModel::CalculateOutput layer  = " << layerCount << ", name = " << m_layers.at(layerCount)->GetName() << std::endl;
+        try
+        {
+            pOutputDataBlock = pLayer->CalculateOutput(pInputDataBlock);
+        }
+        catch(...)
+        {
+            std::cout << "KerasModel::CalculateOutput -  Unable to calculate the output for " << pLayer->GetName() << " layer of Keras model" << std::endl;
 
-        pOutputDataBlock = m_layers.at(layerCount)->CalculateOutput(pInputDataBlock);
+            // Retain the original data block
+            if (pInputDataBlock != pDataBlock)
+                delete pInputDataBlock;
 
+            delete pOutputDataBlock;
+            return;
+        }
+
+        // Retain the original data block
         if (pInputDataBlock != pDataBlock)
             delete pInputDataBlock;
 
@@ -132,12 +146,7 @@ void KerasModel::CalculateOutput(KerasModel::DataBlock *pDataBlock, KerasModel::
     }
 
     outputData1D = pOutputDataBlock->GetData1D();
-
-    if (m_verbose && pOutputDataBlock)
-        pOutputDataBlock->ShowName();
-
     delete pOutputDataBlock;
-
     return;
 }
 
@@ -145,14 +154,20 @@ void KerasModel::CalculateOutput(KerasModel::DataBlock *pDataBlock, KerasModel::
 
 unsigned int KerasModel::GetNInputRows() const
 {
-    return m_layers.front()->GetNInputRows();
+    if (!m_layers.empty())
+        return m_layers.front()->GetNInputRows();
+
+    throw StatusCodeException(STATUS_CODE_NOT_FOUND);
 }
 
 //------------------------------------------------------------------------------------------------------------------------------------------
 
 unsigned int KerasModel::GetNInputCols() const
 {
-    return m_layers.front()->GetNInputCols();
+    if (!m_layers.empty())
+        return m_layers.front()->GetNInputCols();
+
+    throw StatusCodeException(STATUS_CODE_NOT_FOUND);
 }
 
 //------------------------------------------------------------------------------------------------------------------------------------------
@@ -160,7 +175,9 @@ unsigned int KerasModel::GetNInputCols() const
 unsigned int KerasModel::GetOutputLength() const
 {
     int layerCounter(m_layers.size() - 1);
-    while ((layerCounter > 0) && (m_layers.at(layerCounter)->GetOutputUnits() == 0)) layerCounter--;
+    while (layerCounter > 0 && (m_layers.at(layerCounter)->GetOutputUnits() == 0))
+        layerCounter--;
+
     return m_layers.at(layerCounter)->GetOutputUnits();
 }
 
@@ -202,7 +219,6 @@ KerasModel::DataBlock::~DataBlock()
 unsigned int KerasModel::DataBlock::GetDataDim() const
 {
     throw StatusCodeException(STATUS_CODE_NOT_FOUND);
-    return 0;
 }
 
 //------------------------------------------------------------------------------------------------------------------------------------------
@@ -311,7 +327,7 @@ void KerasModel::DataBlock2D::ShowValues() const
         {
             for (unsigned int col = 0; col < m_data3D.at(depth).at(row).size(); col++)
             {
-                std::cout << m_data3D.at(depth).at(row).at(col) << std::endl;
+                std::cout << "(" << depth << "," << row << "," << col << ") : " << m_data3D.at(depth).at(row).at(col) << std::endl;
             }
         }
     }
@@ -369,7 +385,7 @@ void KerasModel::DataBlockFlat::SetData(const Data1D &data1D)
 
 void KerasModel::DataBlockFlat::ReadFromFile(const std::string &/*inputFileName*/)
 {
-    std::cout << "No implementation" << std::endl;
+    throw StatusCodeException(STATUS_CODE_NOT_ALLOWED);
 }
 
 //------------------------------------------------------------------------------------------------------------------------------------------
@@ -384,10 +400,10 @@ void KerasModel::DataBlockFlat::ShowName() const
 void KerasModel::DataBlockFlat::ShowValues() const
 {
     std::cout << "DataBlockFlat values : " << std::endl;
-    for (unsigned int col = 0; col < m_data1D.size(); col++)
-    {
-        std::cout << m_data1D.at(col) << " ";
-    }
+
+    for (const auto &value : m_data1D)
+        std::cout << value << " ";
+
     std::cout << std::endl;
 }
 
@@ -427,15 +443,15 @@ void KerasModel::LayerFlatten::LoadWeights(std::ifstream &/*inputFileStream*/)
 
 //------------------------------------------------------------------------------------------------------------------------------------------
 
-KerasModel::DataBlock* KerasModel::LayerFlatten::CalculateOutput(KerasModel::DataBlock* pDataBlock)
+KerasModel::DataBlock* KerasModel::LayerFlatten::CalculateOutput(const KerasModel::DataBlock* pDataBlock) const
 {
     // Try catch block
-    Data3D data3D = pDataBlock->GetData3D();
+    const Data3D data3D = pDataBlock->GetData3D();
 
-    unsigned int nDepth(data3D.size());
-    unsigned int nRows(data3D.at(0).size());
-    unsigned int nCols(data3D.at(0).at(0).size());
-    unsigned int size = nCols * nRows * nDepth;
+    const unsigned int nDepth(data3D.size());
+    const unsigned int nRows(data3D.at(0).size());
+    const unsigned int nCols(data3D.at(0).at(0).size());
+    const unsigned int size = nCols * nRows * nDepth;
 
     KerasModel::DataBlockFlat *pDataBlockFlat = new KerasModel::DataBlockFlat(size);
     KerasModel::Data1D data1D;
@@ -497,14 +513,14 @@ void KerasModel::LayerMaxPooling::LoadWeights(std::ifstream &inputFileStream)
 
 //------------------------------------------------------------------------------------------------------------------------------------------
 
-KerasModel::DataBlock* KerasModel::LayerMaxPooling::CalculateOutput(KerasModel::DataBlock* pDataBlock)
+KerasModel::DataBlock* KerasModel::LayerMaxPooling::CalculateOutput(const KerasModel::DataBlock* pDataBlock) const
 {
-    Data3D data3D = pDataBlock->GetData3D();
+    const Data3D data3D = pDataBlock->GetData3D();
     Data3D activeData3D;
 
-    unsigned int nDepth(data3D.size());
-    unsigned int nRows(data3D.at(0).size());
-    unsigned int nCols(data3D.at(0).at(0).size());
+    const unsigned int nDepth(data3D.size());
+    const unsigned int nRows(nDepth > 0 ? data3D.at(0).size() : 0);
+    const unsigned int nCols(nRows > 0 ? data3D.at(0).at(0).size() : 0);
 
     for (unsigned int depth = 0; depth < nDepth; depth++)
     {
@@ -518,8 +534,8 @@ KerasModel::DataBlock* KerasModel::LayerMaxPooling::CalculateOutput(KerasModel::
     }
 
     unsigned int nDepthNew(activeData3D.size());
-    unsigned int nRowsNew(activeData3D.at(0).size());
-    unsigned int nColsNew(activeData3D.at(0).at(0).size());
+    unsigned int nRowsNew(nDepthNew > 0 ? activeData3D.at(0).size() : 0);
+    unsigned int nColsNew(nRowsNew > 0 ? activeData3D.at(0).at(0).size() : 0);
 
     for (unsigned int depth = 0; depth < nDepthNew; depth++)
     {
@@ -591,7 +607,7 @@ void KerasModel::LayerActivation::LoadWeights(std::ifstream &inputFileStream)
 
 //------------------------------------------------------------------------------------------------------------------------------------------
 
-KerasModel::DataBlock* KerasModel::LayerActivation::CalculateOutput(KerasModel::DataBlock* pDataBlock)
+KerasModel::DataBlock* KerasModel::LayerActivation::CalculateOutput(const KerasModel::DataBlock* pDataBlock) const
 {
     if (pDataBlock->GetDataDim() == 3)
     {
@@ -621,7 +637,7 @@ KerasModel::DataBlock* KerasModel::LayerActivation::CalculateOutput(KerasModel::
         }
         else
         {
-            throw "Problem";
+            throw StatusCodeException(STATUS_CODE_NOT_FOUND);
         }
     }
     else if (pDataBlock->GetDataDim() == 1)
@@ -665,7 +681,7 @@ KerasModel::DataBlock* KerasModel::LayerActivation::CalculateOutput(KerasModel::
         }
         else
         {
-            throw "Problem";
+            throw StatusCodeException(STATUS_CODE_NOT_FOUND);
         }
 
         KerasModel::DataBlockFlat *pDataBlockFlat = new KerasModel::DataBlockFlat();
@@ -674,7 +690,7 @@ KerasModel::DataBlock* KerasModel::LayerActivation::CalculateOutput(KerasModel::
     }
     else
     {
-        throw "Data dimensions not supported";
+        throw StatusCodeException(STATUS_CODE_NOT_ALLOWED);
     }
 }
 
@@ -729,26 +745,13 @@ void KerasModel::LayerConv2D::LoadWeights(std::ifstream &inputFileStream)
         skip = true;
     }
 
-// This looping seems a bit funky, but it's the way the filters are written to text file
-/*
-std::cout << "Rows " << m_nRows << std::endl;
-std::cout << "Cols " << m_nCols << std::endl;
-std::cout << "Depth " << m_nDepth << std::endl;
-std::cout << "Kernels " << m_kernelsCount << std::endl;
-*/
-
-// Kernel = row, col, depth, kernel - > kernel, depth, row, col
-
     for (unsigned int kernel = 0; kernel < m_kernelsCount; kernel++)
-//    for (unsigned int row = 0; row < m_nRows; row++)
     {
         Data3D data3D;
         for (unsigned int depth = 0; depth < m_nDepth; depth++)
-//        for (unsigned int col = 0; col < m_nCols; col++)
         {
             Data2D data2D;
             for (unsigned int row = 0; row < m_nRows; row++)
-//            for (unsigned int depth = 0; depth < m_nDepth; depth++)
             {
                 if (!skip)
                 {
@@ -762,10 +765,8 @@ std::cout << "Kernels " << m_kernelsCount << std::endl;
 
                 Data1D data1D;
                 for (unsigned int col = 0; col < m_nCols; col++)
-//                for (unsigned int kernel = 0; kernel < m_kernelsCount; kernel++)
                 {
                     inputFileStream >> value;
-//std::cout << "(row, col, dep, kernel) = (" << row << ", " << col << ", " << depth << ", " << kernel << ") = " << value << std::endl;
                     data1D.push_back(value);
                 }
 
@@ -793,31 +794,17 @@ std::cout << "Kernels " << m_kernelsCount << std::endl;
 
 //------------------------------------------------------------------------------------------------------------------------------------------
 
-KerasModel::DataBlock* KerasModel::LayerConv2D::CalculateOutput(KerasModel::DataBlock* pDataBlock)
+KerasModel::DataBlock* KerasModel::LayerConv2D::CalculateOutput(const KerasModel::DataBlock* pDataBlock) const
 {
-//std::cout << "m_kernels.size() " << m_kernels.size() << std::endl;
-//std::cout << "m_kernels.at(0).size() " << m_kernels.at(0).size() << std::endl;
-//std::cout << "m_kernels.at(0).at(0).size() " << m_kernels.at(0).at(0).size() << std::endl;
-//std::cout << "m_kernels.at(0).at(0).at(0).size() " << m_kernels.at(0).at(0).at(0).size() << std::endl;
-
-    // ATTN: Funky divide by 2?
     unsigned int startX(std::floor((m_kernels.at(0).at(0).size() - 1) * 0.5f));
     unsigned int startY(std::floor((m_kernels.at(0).at(0).at(0).size() - 1) * 0.5f));
 
+    const Data3D data3D(pDataBlock->GetData3D());
     Data3D activeData3D;
-    Data3D data3D(pDataBlock->GetData3D());
 
     // Border mode asks whether to shrink grid when concolving or leave it as same size as input
     unsigned int nOutputRows((m_borderMode == "valid") ? data3D.at(0).size() - 2 * startX : data3D.at(0).size());
     unsigned int nOutputCols((m_borderMode == "valid") ? data3D.at(0).at(0).size() - 2 * startY : data3D.at(0).at(0).size());
-
-//std::cout << "nOutputRows " << nOutputRows << std::endl;
-//std::cout << "nOutputCols " << nOutputCols << std::endl;
-//std::cout << "startX " << startX << std::endl;
-//std::cout << "startY " << startY << std::endl;
-//std::cout << "m_borderMode " << m_borderMode << std::endl;
-
-// Kernel = row, col, depth, kernel - > kernel, depth, row, col
 
     for (unsigned int kernel = 0; kernel < m_kernels.size(); kernel++)
     {
@@ -841,7 +828,7 @@ KerasModel::DataBlock* KerasModel::LayerConv2D::CalculateOutput(KerasModel::Data
             {
                 for(unsigned int col = 0; col < data2D.at(0).size(); col++)
                 {
-                    activeData3D.at(kernel).at(row).at(col) += data2D[row][col];
+                    activeData3D.at(kernel).at(row).at(col) += data2D.at(row).at(col);
                 }
             }
         }
@@ -885,7 +872,7 @@ KerasModel::Data2D KerasModel::LayerConv2D::Convolve_SingleDepthValid(const Data
             {
                 for (unsigned int filterCol = 0; filterCol < nColsFilter; filterCol++)
                 {
-                    sum += filter.at(nRowsFilter - filterRow - 1).at(nColsFilter - filterCol - 1) * data2D.at(row - startX + filterRow).at(col - startY + filterCol);
+                    sum += filter.at(filterRow).at(filterCol) * data2D.at(row - startX + filterRow).at(col - startY + filterCol);
                 }
             }
             activeData2D.at(row - startX).at(col - startY) = sum;
@@ -926,7 +913,7 @@ KerasModel::Data2D KerasModel::LayerConv2D::Convolve_SingleDepthSame(const Data2
                         (static_cast<int>(col - startY + filterCol) < 0) || (static_cast<int>(col - startY + filterCol) > maxDataCol))
                         continue;
 
-                    sum += filter.at(nRowsFilter - filterRow - 1).at(nColsFilter - filterCol - 1) * data2D.at(row - startX + filterRow).at(col - startY + filterCol);
+                    sum += filter.at(filterRow).at(filterCol) * data2D.at(row - startX + filterRow).at(col - startY + filterCol);
                 }
             }
             activeData2D.at(row).at(col) = sum;
@@ -1002,11 +989,11 @@ void KerasModel::LayerDense::LoadWeights(std::ifstream &inputFileStream)
 
 //------------------------------------------------------------------------------------------------------------------------------------------
 
-KerasModel::DataBlock* KerasModel::LayerDense::CalculateOutput(KerasModel::DataBlock* pDataBlock)
+KerasModel::DataBlock* KerasModel::LayerDense::CalculateOutput(const KerasModel::DataBlock* pDataBlock) const
 {
     KerasModel::DataBlockFlat *pDataBlockFlat = new KerasModel::DataBlockFlat(m_nNeurons, 0.f);
     KerasModel::Data1D activeData1D(pDataBlockFlat->GetData1D());
-    KerasModel::Data1D data1D(pDataBlock->GetData1D());
+    const KerasModel::Data1D data1D(pDataBlock->GetData1D());
 
     for (unsigned int weightCount = 0; weightCount < m_weights.size(); weightCount++)
     {

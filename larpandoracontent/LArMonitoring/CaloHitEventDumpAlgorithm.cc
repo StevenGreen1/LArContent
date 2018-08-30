@@ -93,6 +93,68 @@ StatusCode CaloHitEventDumpAlgorithm::Run()
 
     KerasModel kerasModel("test.txt", m_verbose);
 
+// SingleImage.txt Test
+//    TwoDHistogram twoDHistogram(m_gridSize, -1.f * m_gridDimensions/2.f,  m_gridDimensions/2.f, m_gridSize, -1.f * m_gridDimensions/2.f,  m_gridDimensions/2.f);
+    TwoDHistogram twoDHistogram(m_gridSize, -1.f * m_gridSize/2.f,  m_gridSize/2.f, m_gridSize, -1.f * m_gridSize/2.f,  m_gridSize/2.f);
+    const int xOffset(8);
+    const int yOffset(8);
+/*
+    twoDHistogram.Fill(8-xOffset, 8-yOffset, 66 * 10000.f / 256.f);
+    twoDHistogram.Fill(8-xOffset, 9-yOffset, 187 * 10000.f / 256.f);
+    twoDHistogram.Fill(9-xOffset, 8-yOffset, 11 * 10000.f / 256.f);
+    twoDHistogram.Fill(9-xOffset, 9-yOffset, 9 * 10000.f / 256.f);
+    twoDHistogram.Fill(9-xOffset, 10-yOffset, 63 * 10000.f / 256.f);
+    twoDHistogram.Fill(9-xOffset, 11-yOffset, 2 * 10000.f / 256.f);
+    twoDHistogram.Fill(8-xOffset, 10-yOffset, 5 * 10000.f / 256.f);
+    twoDHistogram.Fill(10-xOffset, 10-yOffset, 37 * 10000.f / 256.f);
+    twoDHistogram.Fill(10-xOffset, 11-yOffset, 17 * 10000.f / 256.f);
+    twoDHistogram.Fill(11-xOffset, 10-yOffset, 10 * 10000.f / 256.f);
+    twoDHistogram.Fill(11-xOffset, 11-yOffset, 65 * 10000.f / 256.f);
+    twoDHistogram.Fill(11-xOffset, 12-yOffset, 10 * 10000.f / 256.f);
+    twoDHistogram.Fill(12-xOffset, 12-yOffset, 60 * 10000.f / 256.f);
+    twoDHistogram.Fill(13-xOffset, 12-yOffset, 29 * 10000.f / 256.f);
+    twoDHistogram.Fill(13-xOffset, 13-yOffset, 44 * 10000.f / 256.f);
+    twoDHistogram.Fill(14-xOffset, 13-yOffset, 50 * 10000.f / 256.f);
+    twoDHistogram.Fill(14-xOffset, 14-yOffset, 10 * 10000.f / 256.f);
+    twoDHistogram.Fill(15-xOffset, 14-yOffset, 78 * 10000.f / 256.f);
+*/
+
+    twoDHistogram.Fill(8-xOffset, 8-yOffset, 66 * 10000.f / 256.f);
+    twoDHistogram.Fill(9-xOffset, 8-yOffset, 187 * 10000.f / 256.f);
+    twoDHistogram.Fill(8-xOffset, 9-yOffset, 11 * 10000.f / 256.f);
+    twoDHistogram.Fill(9-xOffset, 9-yOffset, 9 * 10000.f / 256.f);
+    twoDHistogram.Fill(10-xOffset, 9-yOffset, 63 * 10000.f / 256.f);
+    twoDHistogram.Fill(11-xOffset, 9-yOffset, 2 * 10000.f / 256.f);
+    twoDHistogram.Fill(10-xOffset, 8-yOffset, 5 * 10000.f / 256.f);
+    twoDHistogram.Fill(10-xOffset, 10-yOffset, 37 * 10000.f / 256.f);
+    twoDHistogram.Fill(11-xOffset, 10-yOffset, 17 * 10000.f / 256.f);
+    twoDHistogram.Fill(10-xOffset, 11-yOffset, 10 * 10000.f / 256.f);
+    twoDHistogram.Fill(11-xOffset, 11-yOffset, 65 * 10000.f / 256.f);
+    twoDHistogram.Fill(12-xOffset, 11-yOffset, 10 * 10000.f / 256.f);
+    twoDHistogram.Fill(12-xOffset, 12-yOffset, 60 * 10000.f / 256.f);
+    twoDHistogram.Fill(12-xOffset, 13-yOffset, 29 * 10000.f / 256.f);
+    twoDHistogram.Fill(13-xOffset, 13-yOffset, 44 * 10000.f / 256.f);
+    twoDHistogram.Fill(13-xOffset, 14-yOffset, 50 * 10000.f / 256.f);
+    twoDHistogram.Fill(14-xOffset, 14-yOffset, 10 * 10000.f / 256.f);
+    twoDHistogram.Fill(14-xOffset, 15-yOffset, 78 * 10000.f / 256.f);
+
+    PANDORA_MONITORING_API(DrawPandoraHistogram(this->GetPandora(), twoDHistogram, "COLZ"));
+
+    KerasModel::DataBlock2D dataBlock2D;
+    this->HistogramToDataBlock(twoDHistogram, dataBlock2D);
+    std::cout << "Input data : " << std::endl;
+    dataBlock2D.ShowValues();
+    KerasModel::Data1D outputData1D;
+    kerasModel.CalculateOutput(&dataBlock2D, outputData1D, this);
+    int counter(0);
+    for (const float &i : outputData1D)
+    {
+        std::cout << "Class " << counter << ", outcome " << i << std::endl;
+        counter++;
+    }
+
+    return STATUS_CODE_SUCCESS;
+/*
     CaloHitList caloHitListTruthTrack, caloHitListTruthShower;
     CaloHitList caloHitListDeepTrack, caloHitListDeepShower;
 
@@ -125,7 +187,7 @@ StatusCode CaloHitEventDumpAlgorithm::Run()
 
         if (m_verbose)
         {
-            std::cout << "Calo hit type is " << targetParticleId << std::endl;
+//            std::cout << "Calo hit type is " << targetParticleId << std::endl;
             int counter(0);
             for (const float &i : outputData1D)
             {
@@ -179,6 +241,7 @@ StatusCode CaloHitEventDumpAlgorithm::Run()
     PANDORA_MONITORING_API(ViewEvent(this->GetPandora()));
 
     return STATUS_CODE_SUCCESS;
+*/
 }
 
 //------------------------------------------------------------------------------------------------------------------------------------------
@@ -187,10 +250,12 @@ void CaloHitEventDumpAlgorithm::HistogramToDataBlock(const TwoDHistogram &twoDHi
 {
     KerasModel::Data3D data3D;
     KerasModel::Data2D data2D;
-    for (int xBin = 0; xBin < twoDHistogram.GetNBinsX(); xBin++)
+    for (int yBin = 0; yBin < twoDHistogram.GetNBinsY(); yBin++)
+//    for (int xBin = 0; xBin < twoDHistogram.GetNBinsX(); xBin++)
     {
         KerasModel::Data1D data1D;
-        for (int yBin = 0; yBin < twoDHistogram.GetNBinsY(); yBin++)
+//        for (int yBin = 0; yBin < twoDHistogram.GetNBinsY(); yBin++)
+        for (int xBin = 0; xBin < twoDHistogram.GetNBinsX(); xBin++)
         {
             data1D.push_back(twoDHistogram.GetBinContent(xBin, yBin) * 256.f / 10000.f ); // I don't know why I did this but it worked, possibly helps the fitting to work with ints
         }
