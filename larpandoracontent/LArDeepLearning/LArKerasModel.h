@@ -5,11 +5,11 @@
  *
  *  $Log: $
  */
-#ifndef LAR_KERAS_MODEL
-#define LAR_KERAS_MODEL 1
+#ifndef LAR_KERAS_MODEL_H
+#define LAR_KERAS_MODEL_H 1
 
+#include "larpandoracontent/LArDeepLearning/LArDataObject.h"
 #include "larpandoracontent/LArHelpers/LArMvaHelper.h"
-
 #include "larpandoracontent/LArObjects/LArMvaInterface.h"
 
 #include "Pandora/Algorithm.h"
@@ -28,10 +28,10 @@ namespace lar_content
 class KerasModel
 {
 public:
-    typedef pandora::FloatVector Data1D;
-    typedef std::vector<Data1D> Data2D;
-    typedef std::vector<Data2D> Data3D;
-    typedef std::vector<Data3D> Data4D;
+//    typedef pandora::FloatVector Data1D;
+//    typedef std::vector<Data1D> Data2D;
+//    typedef std::vector<Data2D> Data3D;
+//    typedef std::vector<Data3D> Data4D;
 
     /**
      *  @brief  Constructor.
@@ -184,8 +184,8 @@ public:
         unsigned int GetOutputUnits() const;
 
     private:
-        int     m_poolX;    ///< The pool size along x
-        int     m_poolY;    ///< The pool size along y
+        unsigned int     m_poolX;    ///< The pool size along x
+        unsigned int     m_poolY;    ///< The pool size along y
     };
 
     class LayerActivation : public Layer
@@ -311,4 +311,4 @@ public:
 
 } // namespace lar_content
 
-#endif // #ifndef LAR_KERAS_MODEL
+#endif // #ifndef LAR_KERAS_MODEL_H

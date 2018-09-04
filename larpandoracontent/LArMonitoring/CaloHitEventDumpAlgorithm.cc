@@ -144,14 +144,10 @@ StatusCode CaloHitEventDumpAlgorithm::Run()
     this->HistogramToDataBlock(twoDHistogram, dataBlock2D);
     std::cout << "Input data : " << std::endl;
     dataBlock2D.ShowValues();
-    KerasModel::Data1D outputData1D;
+    Data1D outputData1D;
     kerasModel.CalculateOutput(&dataBlock2D, outputData1D, this);
-    int counter(0);
-    for (const float &i : outputData1D)
-    {
-        std::cout << "Class " << counter << ", outcome " << i << std::endl;
-        counter++;
-    }
+    for (int i = 0; i < outputData1D.GetSizeI(); i++)
+        std::cout << "Class " << i << ", outcome " << outputData1D.Get(i) << std::endl;
 
     return STATUS_CODE_SUCCESS;
 /*
@@ -182,7 +178,7 @@ StatusCode CaloHitEventDumpAlgorithm::Run()
 
         KerasModel::DataBlock2D dataBlock2D;
         this->HistogramToDataBlock(twoDHistogram, dataBlock2D);
-        KerasModel::Data1D outputData1D;
+        Data1D outputData1D;
         kerasModel.CalculateOutput(&dataBlock2D, outputData1D);
 
         if (m_verbose)
@@ -248,20 +244,20 @@ StatusCode CaloHitEventDumpAlgorithm::Run()
 
 void CaloHitEventDumpAlgorithm::HistogramToDataBlock(const TwoDHistogram &twoDHistogram, KerasModel::DataBlock2D &dataBlock2D)
 {
-    KerasModel::Data3D data3D;
-    KerasModel::Data2D data2D;
+    Data3D data3D;
+    Data2D data2D;
     for (int yBin = 0; yBin < twoDHistogram.GetNBinsY(); yBin++)
 //    for (int xBin = 0; xBin < twoDHistogram.GetNBinsX(); xBin++)
     {
-        KerasModel::Data1D data1D;
+        Data1D data1D;
 //        for (int yBin = 0; yBin < twoDHistogram.GetNBinsY(); yBin++)
         for (int xBin = 0; xBin < twoDHistogram.GetNBinsX(); xBin++)
         {
-            data1D.push_back(twoDHistogram.GetBinContent(xBin, yBin) * 256.f / 10000.f ); // I don't know why I did this but it worked, possibly helps the fitting to work with ints
+            data1D.Append(twoDHistogram.GetBinContent(xBin, yBin) * 256.f / 10000.f ); // I don't know why I did this but it worked, possibly helps the fitting to work with ints
         }
-        data2D.push_back(data1D);
+        data2D.Append(data1D);
     }
-    data3D.push_back(data2D);
+    data3D.Append(data2D);
     dataBlock2D.SetData(data3D);
     return;
 }

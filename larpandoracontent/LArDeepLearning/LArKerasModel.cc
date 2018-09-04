@@ -115,7 +115,7 @@ void KerasModel::LoadWeights(const std::string &inputFileName)
 
 //------------------------------------------------------------------------------------------------------------------------------------------
 
-void KerasModel::CalculateOutput(const KerasModel::DataBlock *pDataBlock, KerasModel::Data1D &outputData1D, const pandora::Algorithm *const /*pAlgorithm*/) const
+void KerasModel::CalculateOutput(const KerasModel::DataBlock *pDataBlock, Data1D &outputData1D, const pandora::Algorithm *const /*pAlgorithm*/) const
 {
     const KerasModel::DataBlock *pInputDataBlock = pDataBlock;
     const KerasModel::DataBlock *pOutputDataBlock(nullptr);
@@ -183,9 +183,9 @@ unsigned int KerasModel::GetOutputLength() const
 
 //------------------------------------------------------------------------------------------------------------------------------------------
 
-KerasModel::Data1D KerasModel::Read1DArray(std::ifstream &inputFileStream, const int nCols)
+Data1D KerasModel::Read1DArray(std::ifstream &inputFileStream, const int nCols)
 {
-    KerasModel::Data1D data1D;
+    FloatVector data;
     float value;
     char valueChar;
 
@@ -194,11 +194,11 @@ KerasModel::Data1D KerasModel::Read1DArray(std::ifstream &inputFileStream, const
     for (unsigned int col = 0; col < nCols; col++)
     {
         inputFileStream >> value;
-        data1D.push_back(value);
+        data.push_back(value);
     }
 
     inputFileStream >> valueChar; // For ]
-    return data1D;
+    return Data1D(data);
 }
 
 //------------------------------------------------------------------------------------------------------------------------------------------
@@ -223,14 +223,14 @@ unsigned int KerasModel::DataBlock::GetDataDim() const
 
 //------------------------------------------------------------------------------------------------------------------------------------------
 
-KerasModel::Data1D const &KerasModel::DataBlock::GetData1D() const
+Data1D const &KerasModel::DataBlock::GetData1D() const
 {
     throw StatusCodeException(STATUS_CODE_NOT_FOUND);
 }
 
 //------------------------------------------------------------------------------------------------------------------------------------------
 
-KerasModel::Data3D const &KerasModel::DataBlock::GetData3D() const
+Data3D const &KerasModel::DataBlock::GetData3D() const
 {
     throw StatusCodeException(STATUS_CODE_NOT_FOUND);
 }
@@ -278,7 +278,7 @@ unsigned int KerasModel::DataBlock2D::GetDataDim() const
 
 //------------------------------------------------------------------------------------------------------------------------------------------
 
-KerasModel::Data3D const &KerasModel::DataBlock2D::GetData3D() const
+Data3D const &KerasModel::DataBlock2D::GetData3D() const
 {
     return m_data3D;
 }
@@ -299,13 +299,13 @@ void KerasModel::DataBlock2D::ReadFromFile(const std::string &inputFileName)
 
     for (unsigned int depth = 0; depth < m_depth; depth++)
     {
-        KerasModel::Data2D data2D;
+        Data2D data2D;
         for (unsigned int row = 0; row < m_rows; row++)
         {
-            KerasModel::Data1D data1D = KerasModel::Read1DArray(inputFile, m_cols);
-            data2D.push_back(data1D);
+            Data1D data1D = KerasModel::Read1DArray(inputFile, m_cols);
+            data2D.Append(data1D);
         }
-        m_data3D.push_back(data2D);
+        m_data3D.Append(data2D);
     }
     inputFile.close();
 }
@@ -314,20 +314,21 @@ void KerasModel::DataBlock2D::ReadFromFile(const std::string &inputFileName)
 
 void KerasModel::DataBlock2D::ShowName() const
 {
-    std::cout << "DataBlock2D " << m_data3D.size() << "x" << m_data3D.at(0).size() << "x" << m_data3D.at(0).at(0).size() << std::endl;
+    std::cout << "KerasModel::DataBlock2D::ShowName - DataBlock2D " << m_data3D.GetSizeK() << "x" << m_data3D.GetSizeJ() << "x" << m_data3D.GetSizeI() << std::endl;
+    return;
 }
 
 //------------------------------------------------------------------------------------------------------------------------------------------
 
 void KerasModel::DataBlock2D::ShowValues() const
 {
-    for (unsigned int depth = 0; depth < m_data3D.size(); depth++)
+    for (unsigned int k = 0; k < m_data3D.GetSizeK(); k++)
     {
-        for (unsigned int row = 0; row < m_data3D.at(depth).size(); row++)
+        for (unsigned int j = 0; j < m_data3D.GetSizeJ(); j++)
         {
-            for (unsigned int col = 0; col < m_data3D.at(depth).at(row).size(); col++)
+            for (unsigned int i = 0; i < m_data3D.GetSizeI(); i++)
             {
-                std::cout << "(" << depth << "," << row << "," << col << ") : " << m_data3D.at(depth).at(row).at(col) << std::endl;
+                std::cout << "(" << i << "," << j << "," << k << ") : " << m_data3D.Get(i, j, k) << std::endl;
             }
         }
     }
@@ -343,14 +344,14 @@ KerasModel::DataBlockFlat::DataBlockFlat()
 //------------------------------------------------------------------------------------------------------------------------------------------
 
 KerasModel::DataBlockFlat::DataBlockFlat(unsigned int size) :
-    m_data1D(size)
+    m_data1D(FloatVector(size))
 {
 }
 
 //------------------------------------------------------------------------------------------------------------------------------------------
 
 KerasModel::DataBlockFlat::DataBlockFlat(unsigned int size, float init) :
-    m_data1D(size, init)
+    m_data1D(FloatVector(size, init))
 {
 }
 
@@ -369,7 +370,7 @@ unsigned int KerasModel::DataBlockFlat::GetDataDim() const
 
 //------------------------------------------------------------------------------------------------------------------------------------------
 
-KerasModel::Data1D const &KerasModel::DataBlockFlat::GetData1D() const
+Data1D const &KerasModel::DataBlockFlat::GetData1D() const
 {
     return m_data1D;
 }
@@ -392,17 +393,17 @@ void KerasModel::DataBlockFlat::ReadFromFile(const std::string &/*inputFileName*
 
 void KerasModel::DataBlockFlat::ShowName() const
 {
-    std::cout << "DataBlockFlat " << m_data1D.size() << std::endl;
+    std::cout << "KerasModel::DataBlockFlat::ShowName - DataBlockFlat size " << m_data1D.GetSizeI() << std::endl;
 }
 
 //------------------------------------------------------------------------------------------------------------------------------------------
 
 void KerasModel::DataBlockFlat::ShowValues() const
 {
-    std::cout << "DataBlockFlat values : " << std::endl;
+    std::cout << "KerasModel::DataBlockFlat::ShowValues - DataBlockFlat values : " << std::endl;
 
-    for (const auto &value : m_data1D)
-        std::cout << value << " ";
+    for (int idxI = 0; idxI < m_data1D.GetSizeI(); idxI++)
+        std::cout << m_data1D.Get(idxI) << " ";
 
     std::cout << std::endl;
 }
@@ -445,24 +446,17 @@ void KerasModel::LayerFlatten::LoadWeights(std::ifstream &/*inputFileStream*/)
 
 KerasModel::DataBlock* KerasModel::LayerFlatten::CalculateOutput(const KerasModel::DataBlock* pDataBlock) const
 {
-    // Try catch block
     const Data3D data3D = pDataBlock->GetData3D();
+    KerasModel::DataBlockFlat *pDataBlockFlat = new KerasModel::DataBlockFlat(data3D.GetSizeI() * data3D.GetSizeJ() * data3D.GetSizeK());
+    Data1D data1D;
 
-    const unsigned int nDepth(data3D.size());
-    const unsigned int nRows(data3D.at(0).size());
-    const unsigned int nCols(data3D.at(0).at(0).size());
-    const unsigned int size = nCols * nRows * nDepth;
-
-    KerasModel::DataBlockFlat *pDataBlockFlat = new KerasModel::DataBlockFlat(size);
-    KerasModel::Data1D data1D;
-
-    for (unsigned int depth = 0; depth < nDepth; depth++)
+    for (unsigned int k = 0; k < data3D.GetSizeK(); k++)
     {
-        for (unsigned int row = 0; row < nRows; row++)
+        for (unsigned int j = 0; j < data3D.GetSizeJ(); j++)
         {
-            for (unsigned int col = 0; col < nCols; col++)
+            for (unsigned int i = 0; i < data3D.GetSizeI(); i++)
             {
-                data1D.push_back(data3D.at(depth).at(row).at(col));
+                data1D.Append(data3D.Get(i,j,k));
             }
         }
     }
@@ -518,46 +512,40 @@ KerasModel::DataBlock* KerasModel::LayerMaxPooling::CalculateOutput(const KerasM
     const Data3D data3D = pDataBlock->GetData3D();
     Data3D activeData3D;
 
-    const unsigned int nDepth(data3D.size());
-    const unsigned int nRows(nDepth > 0 ? data3D.at(0).size() : 0);
-    const unsigned int nCols(nRows > 0 ? data3D.at(0).at(0).size() : 0);
-
-    for (unsigned int depth = 0; depth < nDepth; depth++)
+    for (unsigned int k = 0; k < data3D.GetSizeK(); k++)
     {
         Data2D activeData2D;
-        for (unsigned int row = 0; row < (unsigned int)(nRows/m_poolX); row++)
-        {
-            // Initialise 2D data to be of correct size, but all elements set to 0.f
-            activeData2D.push_back(Data1D((int)(nCols/m_poolY), 0.f));
-        }
-        activeData3D.push_back(activeData2D);
+        const unsigned int poolMaxJ(m_poolX != 0 ? data3D.GetSizeJ()/m_poolX : 0);
+        const unsigned int poolMaxI(m_poolY != 0 ? data3D.GetSizeI()/m_poolY : 0);
+
+        for (unsigned int j = 0; j < poolMaxJ; j++)
+            activeData2D.Append(Data1D(FloatVector(poolMaxI, 0.f)));
+
+        activeData3D.Append(activeData2D);
     }
 
-    unsigned int nDepthNew(activeData3D.size());
-    unsigned int nRowsNew(nDepthNew > 0 ? activeData3D.at(0).size() : 0);
-    unsigned int nColsNew(nRowsNew > 0 ? activeData3D.at(0).at(0).size() : 0);
-
-    for (unsigned int depth = 0; depth < nDepthNew; depth++)
+    for (unsigned int k = 0; k < activeData3D.GetSizeK(); k++)
     {
-        for (unsigned int row = 0; row < nRowsNew; row++)
+        for (unsigned int j = 0; j < activeData3D.GetSizeJ(); j++)
         {
-            unsigned int startX(row * m_poolX);
-            unsigned int endX(startX + m_poolX);
-            for (unsigned int col = 0; col < nColsNew; col++)
-            {
-                unsigned int startY(col * m_poolY);
-                unsigned int endY(startY + m_poolY);
+            unsigned int startY(j * m_poolY);
+            unsigned int endY(startY + m_poolY);
 
-                Data1D data1DToPool;
-                for (unsigned int x = startX; x < endX; x++)
+            for (unsigned int i = 0; i < activeData3D.GetSizeI(); i++)
+            {
+                unsigned int startX(i * m_poolX);
+                unsigned int endX(startX + m_poolX);
+
+                FloatVector dataToPool;
+                for (unsigned int y = startY; y < endY; y++)
                 {
-                    for (unsigned int y = startY; y < endY; y++)
+                    for (unsigned int x = startX; x < endX; x++)
                     {
-                        data1DToPool.push_back(data3D.at(depth).at(x).at(y));
+                        dataToPool.push_back(data3D.Get(x, y, k));
                     }
                 }
 
-                activeData3D.at(depth).at(row).at(col) = *std::max_element(data1DToPool.begin(), data1DToPool.end());
+                activeData3D.Set(i, j, k, *std::max_element(dataToPool.begin(), dataToPool.end()));
             }
         }
     }
@@ -615,18 +603,14 @@ KerasModel::DataBlock* KerasModel::LayerActivation::CalculateOutput(const KerasM
 
         if ("relu" == m_activationType)
         {
-            unsigned int nDepth(data3D.size());
-            unsigned int nRows(data3D.at(0).size());
-            unsigned int nCols(data3D.at(0).at(0).size());
-
-            for (unsigned int depth = 0; depth < nDepth; depth++)
+            for (unsigned int k = 0; k < data3D.GetSizeK(); k++)
             {
-                for (unsigned int row = 0; row < nRows; row++)
+                for (unsigned int j = 0; j < data3D.GetSizeJ(); j++)
                 {
-                    for (unsigned int col = 0; col < nCols; col++)
+                    for (unsigned int i = 0; i < data3D.GetSizeI(); i++)
                     {
-                        if(data3D.at(depth).at(row).at(col) < 0.f)
-                            data3D.at(depth).at(row).at(col) = 0.f;
+                        if(data3D.Get(i, j, k) < 0.f)
+                            data3D.Set(i, j, k, 0.f);
                     }
                 }
             }
@@ -646,37 +630,37 @@ KerasModel::DataBlock* KerasModel::LayerActivation::CalculateOutput(const KerasM
 
         if ("relu" == m_activationType)
         {
-            for (unsigned int col = 0; col < data1D.size(); col++)
+            for (unsigned int i = 0; i < data1D.GetSizeI(); i++)
             {
-                if (data1D.at(col) < 0.f)
-                    data1D.at(col) = 0.f;
+                if (data1D.Get(i) < 0.f)
+                    data1D.Set(i, 0.f);
             }
         }
         else if ("softmax" == m_activationType)
         {
             float sum(0.f);
-            for (unsigned int col = 0; col < data1D.size(); col++)
+            for (unsigned int i = 0; i < data1D.GetSizeI(); i++)
             {
-                data1D.at(col) = std::exp(data1D.at(col));
-                sum += data1D.at(col);
+                data1D.Set(i, std::exp(data1D.Get(i)));
+                sum += data1D.Get(i);
             }
-            for (unsigned int col = 0; col < data1D.size(); col++)
+            for (unsigned int i = 0; i < data1D.GetSizeI(); i++)
             {
-                data1D.at(col) /= sum;
+                data1D.Set(i, data1D.Get(i)/sum);
             }
         }
         else if ("sigmoid" == m_activationType)
         {
-            for (unsigned int col = 0; col < data1D.size(); col++)
+            for (unsigned int i = 0; i < data1D.GetSizeI(); i++)
             {
-                data1D.at(col) = 1.f / (1.f + std::exp(-1.f * data1D.at(col)));
+                data1D.Set(i, 1.f / (1.f + std::exp(-1.f * data1D.Get(i))));
             }
         }
         else if ("tanh" == m_activationType)
         {
-            for (unsigned int col = 0; col < data1D.size(); col++)
+            for (unsigned int i = 0; i < data1D.GetSizeI(); i++)
             {
-                data1D.at(col) = std::tanh(data1D.at(col));
+                data1D.Set(i, std::tanh(data1D.Get(i)));
             }
         }
         else
@@ -767,16 +751,16 @@ void KerasModel::LayerConv2D::LoadWeights(std::ifstream &inputFileStream)
                 for (unsigned int col = 0; col < m_nCols; col++)
                 {
                     inputFileStream >> value;
-                    data1D.push_back(value);
+                    data1D.Append(value);
                 }
 
                 // ATTN: For the ']'
                 inputFileStream >> valueChar;
-                data2D.push_back(data1D);
+                data2D.Append(data1D);
             }
-            data3D.push_back(data2D);
+            data3D.Append(data2D);
         }
-        m_kernels.push_back(data3D);
+        m_kernels.Append(data3D);
     }
 
     // ATTN: For the '['
@@ -785,7 +769,7 @@ void KerasModel::LayerConv2D::LoadWeights(std::ifstream &inputFileStream)
     for (unsigned int kernel = 0; kernel < m_kernelsCount; kernel++)
     {
         inputFileStream >> value;
-        m_bias.push_back(value);
+        m_bias.Append(value);
     }
 
     // ATTN: For the '['
@@ -796,48 +780,48 @@ void KerasModel::LayerConv2D::LoadWeights(std::ifstream &inputFileStream)
 
 KerasModel::DataBlock* KerasModel::LayerConv2D::CalculateOutput(const KerasModel::DataBlock* pDataBlock) const
 {
-    unsigned int startX(std::floor((m_kernels.at(0).at(0).size() - 1) * 0.5f));
-    unsigned int startY(std::floor((m_kernels.at(0).at(0).at(0).size() - 1) * 0.5f));
+// FIX
+    unsigned int startX(std::floor((m_kernels.GetSizeJ() - 1) * 0.5f));
+    unsigned int startY(std::floor((m_kernels.GetSizeI() - 1) * 0.5f));
 
     const Data3D data3D(pDataBlock->GetData3D());
     Data3D activeData3D;
 
     // Border mode asks whether to shrink grid when concolving or leave it as same size as input
-    unsigned int nOutputRows((m_borderMode == "valid") ? data3D.at(0).size() - 2 * startX : data3D.at(0).size());
-    unsigned int nOutputCols((m_borderMode == "valid") ? data3D.at(0).at(0).size() - 2 * startY : data3D.at(0).at(0).size());
+    unsigned int nOutputRows((m_borderMode == "valid") ? data3D.GetSizeJ() - 2 * startX : data3D.GetSizeJ());
+    unsigned int nOutputCols((m_borderMode == "valid") ? data3D.GetSizeI() - 2 * startY : data3D.GetSizeI());
 
-    for (unsigned int kernel = 0; kernel < m_kernels.size(); kernel++)
+    for (unsigned int kernel = 0; kernel < m_kernels.GetSizeL(); kernel++)
     {
         Data2D data2D;
-        data2D.reserve(startX);
 
         for(unsigned int rowOutput = 0; rowOutput < nOutputRows; rowOutput++)
         {
-            data2D.emplace_back(Data1D(nOutputCols, 0.f));
+            data2D.Append(Data1D(FloatVector(nOutputCols, 0.f)));
         }
-        activeData3D.push_back(data2D);
+        activeData3D.Append(data2D);
     }
 
-    for (unsigned int kernel = 0; kernel < m_kernels.size(); kernel++)
+    for (unsigned int kernel = 0; kernel < m_kernels.GetSizeL(); kernel++)
     {
-        for(unsigned int depth = 0; depth < data3D.size(); depth++)
+        for(unsigned int k = 0; k < data3D.GetSizeK(); k++)
         {
-            Data2D data2D(m_borderMode == "valid" ? this->Convolve_SingleDepthValid(data3D.at(depth), m_kernels.at(kernel).at(depth)) : this->Convolve_SingleDepthSame(data3D.at(depth), m_kernels.at(kernel).at(depth)));
+            Data2D data2D(m_borderMode == "valid" ? this->Convolve_SingleDepthValid(data3D.GetData2D(k), m_kernels.GetData2D(k, kernel)) : this->Convolve_SingleDepthSame(data3D.GetData2D(k), m_kernels.GetData2D(k, kernel)));
 
-            for(unsigned int row = 0; row < data2D.size(); row++)
+            for(unsigned int j = 0; j < data2D.GetSizeJ(); j++)
             {
-                for(unsigned int col = 0; col < data2D.at(0).size(); col++)
+                for(unsigned int i = 0; i < data2D.GetSizeI(); i++)
                 {
-                    activeData3D.at(kernel).at(row).at(col) += data2D.at(row).at(col);
+                    activeData3D.Set(i, j, kernel, activeData3D.Get(i, j, kernel) + data2D.Get(i, j));
                 }
             }
         }
 
-        for(unsigned int row = 0; row < activeData3D.at(0).size(); row++)
+        for(unsigned int j = 0; j < activeData3D.GetSizeJ(); j++)
         {
-            for(unsigned int col = 0; col < activeData3D.at(0).at(0).size(); col++)
+            for(unsigned int i = 0; i < activeData3D.GetSizeI(); i++)
             {
-                activeData3D.at(kernel).at(row).at(col) += m_bias.at(kernel);
+                activeData3D.Set(i, j, kernel, activeData3D.Get(i, j, kernel) + m_bias.Get(kernel));
             }
         }
     }
@@ -849,33 +833,34 @@ KerasModel::DataBlock* KerasModel::LayerConv2D::CalculateOutput(const KerasModel
 
 //------------------------------------------------------------------------------------------------------------------------------------------
 
-KerasModel::Data2D KerasModel::LayerConv2D::Convolve_SingleDepthValid(const Data2D &data2D, const Data2D &filter) const
+Data2D KerasModel::LayerConv2D::Convolve_SingleDepthValid(const Data2D &data2D, const Data2D &filter) const
 {
+// FIX
     // Function to apply convolution and give output that is reduced in size (e.g. 5x5 * 3x3 = 3x3)
-    unsigned int nRowsFilter(filter.size());
-    unsigned int nColsFilter(filter.at(0).size());
+    unsigned int filterSizeJ(filter.GetSizeJ());
+    unsigned int filterSizeI(filter.GetSizeI());
 
-    unsigned int startX((nRowsFilter - 1) * 0.5f);
-    unsigned int startY((nColsFilter - 1) * 0.5f);
+    unsigned int startJ((filterSizeJ - 1) * 0.5f);
+    unsigned int startI((filterSizeI - 1) * 0.5f);
 
     // Output data product with correct size to recieve result of convolution
-    Data2D activeData2D(data2D.size() - 2 * startX, Data1D(data2D.at(0).size() - 2 * startY, 0.f));
+    Data2D activeData2D(data2D.GetSizeJ() - 2 * startJ, Data1D(data2D.GetSizeI() - 2 * startI, 0.f));
 
     // Loop over all points in the original data set where the filer can be applied
-    for (unsigned int row = startX; row < data2D.size() - startX; row++)
+    for (unsigned int j = startJ; j < data2D.GetSizeJ() - startJ; j++)
     {
-        for (unsigned int col = startY; col < data2D.size() - startY; col++)
+        for (unsigned int i = startI; i < data2D.GetSizeI() - startI; i++)
         {
             // Apply the filter to the data, seems like the Kernel is flipped so instead of f11*d11 + f12*d12 + ... you'd start with fnn*d11 + fnn-1*d12 + ...
             float sum(0.f);
-            for (unsigned int filterRow = 0; filterRow < nRowsFilter; filterRow++)
+            for (unsigned int filterJ = 0; filterJ < filterSizeJ; filterJ++)
             {
-                for (unsigned int filterCol = 0; filterCol < nColsFilter; filterCol++)
+                for (unsigned int filterI = 0; filterI < filterSizeI; filterI++)
                 {
-                    sum += filter.at(filterRow).at(filterCol) * data2D.at(row - startX + filterRow).at(col - startY + filterCol);
+                    sum += filter.Get(filterI, filterJ) * data2D.Get(i - startI + filterI, j - startJ + filterJ);
                 }
             }
-            activeData2D.at(row - startX).at(col - startY) = sum;
+            activeData2D.Set(i - startI, j - startJ, sum);
         }
     }
     return activeData2D;
@@ -883,40 +868,41 @@ KerasModel::Data2D KerasModel::LayerConv2D::Convolve_SingleDepthValid(const Data
 
 //------------------------------------------------------------------------------------------------------------------------------------------
 
-KerasModel::Data2D KerasModel::LayerConv2D::Convolve_SingleDepthSame(const Data2D &data2D, const Data2D &filter) const
+Data2D KerasModel::LayerConv2D::Convolve_SingleDepthSame(const Data2D &data2D, const Data2D &filter) const
 {
+// FIX
     // Function to apply convolution and give output that is the same size as input data
-    unsigned int nRowsFilter(filter.size());
-    unsigned int nColsFilter(filter.at(0).size());
+    unsigned int filterSizeJ(filter.GetSizeJ());
+    unsigned int filterSizeI(filter.GetSizeI());
 
-    unsigned int startX((nRowsFilter - 1) * 0.5f);
-    unsigned int startY((nColsFilter - 1) * 0.5f);
+    unsigned int startJ((filterSizeJ - 1) * 0.5f);
+    unsigned int startI((filterSizeI - 1) * 0.5f);
 
-    unsigned int maxDataRow(data2D.size() - 1);
-    unsigned int maxDataCol(data2D.at(0).size() - 1);
+    unsigned int maxDataJ(data2D.GetSizeJ() - 1);
+    unsigned int maxDataI(data2D.GetSizeI() - 1);
 
     // Output data product with correct size to recieve result of convolution
-    Data2D activeData2D(data2D.size(), Data1D(data2D.at(0).size(), 0.f));
+    Data2D activeData2D(data2D.GetSizeJ(), Data1D(data2D.GetSizeI(), 0.f));
 
     // Loop over all points in the original data set where the filer can be applied
-    for (unsigned int row = startX; row < data2D.size() - startX; row++)
+    for (unsigned int j = startJ; j < data2D.GetSizeJ() - startJ; j++)
     {
-        for (unsigned int col = startY; col < data2D.size() - startY; col++)
+        for (unsigned int i = startI; i < data2D.GetSizeI() - startI; i++)
         {
             // Apply the filter to the data, seems like the Kernel is flipped so instead of f11*d11 + f12*d12 + ... you'd start with fnn*d11 + fnn-1*d12 + ...
             float sum(0.f);
-            for (unsigned int filterRow = 0; filterRow < nRowsFilter; filterRow++)
+            for (unsigned int filterJ = 0; filterJ < filterSizeJ; filterJ++)
             {
-                for (unsigned int filterCol = 0; filterCol < nColsFilter; filterCol++)
+                for (unsigned int filterI = 0; filterI < filterSizeI; filterI++)
                 {
-                    if ((static_cast<int>(row - startX + filterRow) < 0) || (static_cast<int>(row - startX + filterRow) > maxDataRow) ||
-                        (static_cast<int>(col - startY + filterCol) < 0) || (static_cast<int>(col - startY + filterCol) > maxDataCol))
+                    if ((static_cast<int>(j - startJ + filterJ) < 0) || (static_cast<int>(j - startJ + filterJ) > maxDataJ) ||
+                        (static_cast<int>(i - startI + filterI) < 0) || (static_cast<int>(i - startI + filterI) > maxDataI))
                         continue;
 
-                    sum += filter.at(filterRow).at(filterCol) * data2D.at(row - startX + filterRow).at(col - startY + filterCol);
+                    sum += filter.Get(filterI, filterJ) * data2D.Get(i - startI + filterI, j - startJ + filterJ);
                 }
             }
-            activeData2D.at(row).at(col) = sum;
+            activeData2D.Set(i, j, sum);
         }
     }
     return activeData2D;
@@ -969,11 +955,11 @@ void KerasModel::LayerDense::LoadWeights(std::ifstream &inputFileStream)
         for (unsigned int neuronCount = 0; neuronCount < m_nNeurons; neuronCount++)
         {
             inputFileStream >> value;
-            data1D.push_back(value);
+            data1D.Append(value);
         }
 
         inputFileStream >> valueChar; // for ']'
-        m_weights.push_back(data1D);
+        m_weights.Append(data1D);
     }
 
     inputFileStream >> valueChar; // for '['
@@ -981,7 +967,7 @@ void KerasModel::LayerDense::LoadWeights(std::ifstream &inputFileStream)
     for (unsigned int neuronCount = 0; neuronCount < m_nNeurons; neuronCount++)
     {
         inputFileStream >> value;
-        m_bias.push_back(value);
+        m_bias.Append(value);
     }
 
     inputFileStream >> valueChar; // for ']'
@@ -992,26 +978,26 @@ void KerasModel::LayerDense::LoadWeights(std::ifstream &inputFileStream)
 KerasModel::DataBlock* KerasModel::LayerDense::CalculateOutput(const KerasModel::DataBlock* pDataBlock) const
 {
     KerasModel::DataBlockFlat *pDataBlockFlat = new KerasModel::DataBlockFlat(m_nNeurons, 0.f);
-    KerasModel::Data1D activeData1D(pDataBlockFlat->GetData1D());
-    const KerasModel::Data1D data1D(pDataBlock->GetData1D());
+    Data1D activeData1D(pDataBlockFlat->GetData1D());
+    const Data1D data1D(pDataBlock->GetData1D());
 
-    for (unsigned int weightCount = 0; weightCount < m_weights.size(); weightCount++)
+    for (unsigned int weightCount = 0; weightCount < m_weights.GetSizeJ(); weightCount++)
     {
-        const Data1D weights(m_weights.at(weightCount));
-        float data(data1D.at(weightCount));
+        const Data1D weights(m_weights.GetData1D(weightCount));
+        float data(data1D.Get(weightCount));
 
         unsigned int neuronCounter(0);
 
         while (neuronCounter < m_nNeurons)
         {
-            activeData1D.at(neuronCounter) += weights.at(neuronCounter) * data;
+            activeData1D.Set(neuronCounter, activeData1D.Get(neuronCounter) + (weights.Get(neuronCounter) * data));
             neuronCounter++;
         }
     }
 
     for (unsigned int biasCount = 0; biasCount < m_nNeurons; biasCount++)
     {
-        activeData1D.at(biasCount) += m_bias.at(biasCount);
+        activeData1D.Set(biasCount, activeData1D.Get(biasCount) + m_bias.Get(biasCount));
     }
 
     pDataBlockFlat->SetData(activeData1D);
