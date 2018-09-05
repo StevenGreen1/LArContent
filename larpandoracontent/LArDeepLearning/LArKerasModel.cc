@@ -17,19 +17,8 @@ using namespace pandora;
 namespace lar_content
 {
 
-KerasModel::KerasModel(const std::string &inputFileName, bool verbose) :
-    m_nLayers(std::numeric_limits<int>::max()),
-    m_nActiveLayers(std::numeric_limits<int>::max()),
-    m_verbose(verbose)
+KerasModel::KerasModel()
 {
-    try
-    {
-        this->LoadWeights(inputFileName);
-    }
-    catch (const StatusCodeException &statusCodeException)
-    {
-        std::cout << "KerasModel::LoadWeights - Unable to define network due to unexpected layer type" << std::endl;
-    }
 }
 
 //------------------------------------------------------------------------------------------------------------------------------------------
@@ -41,76 +30,109 @@ KerasModel::~KerasModel()
 }
 
 //------------------------------------------------------------------------------------------------------------------------------------------
-/*
-StatusCode KerasModel::Initialize(const std::string &bdtXmlFileName, const std::string &bdtName)
+
+StatusCode KerasModel::Initialize(const std::string &cnnXmlFileName, const std::string &cnnName)
 {
-    return STATUS_CODE_SUCCESS;
-}
-*/
-//------------------------------------------------------------------------------------------------------------------------------------------
+    TiXmlDocument xmlDocument(cnnXmlFileName);
 
-void KerasModel::LoadWeights(const std::string &inputFileName)
-{
-    if (m_verbose)
-        std::cout << "Reading model from " << inputFileName << std::endl;
-
-    std::ifstream inputFileStream(inputFileName.c_str());
-
-    std::string layerType("");
-    std::string valueStr("");
-    int valueInt(std::numeric_limits<int>::max());
-
-    inputFileStream >> valueStr >> m_nLayers;
-
-    m_nActiveLayers = m_nLayers;
-
-    if (m_verbose)
-        std::cout << "nLayers " << m_nLayers << std::endl;
-
-    for (unsigned int layerCount = 0; layerCount < m_nLayers; layerCount++)
+    if (!xmlDocument.LoadFile())
     {
-        inputFileStream >> valueStr >> valueInt >> layerType;
-
-        if (m_verbose)
-            std::cout << "Layer " << valueInt << " " << layerType << ", layerCount = " << layerCount << std::endl;
-
-        Layer *pLayer(nullptr);
-
-        if (layerType == "Conv2D")
-        {
-            pLayer = new LayerConv2D();
-        }
-        else if (layerType == "Activation")
-        {
-           pLayer = new LayerActivation();
-        }
-        else if (layerType == "MaxPooling2D")
-        {
-           pLayer = new LayerMaxPooling();
-        }
-        else if (layerType == "Flatten")
-        {
-           pLayer = new LayerFlatten();
-        }
-        else if (layerType == "Dense")
-        {
-           pLayer = new LayerDense();
-        }
-        else if (layerType == "Dropout")
-        {
-           // Dropout layer is not needed in prediction mode
-           m_nActiveLayers--;
-           continue;
-        }
-
-        if (!pLayer)
-            throw StatusCodeException(STATUS_CODE_INVALID_PARAMETER);
-
-        pLayer->LoadWeights(inputFileStream);
-        m_layers.push_back(pLayer);
+        std::cout << "KerasModel::Initialize - Invalid xml file." << std::endl;
+        return STATUS_CODE_INVALID_PARAMETER;
     }
 
-    inputFileStream.close();
+    const TiXmlHandle xmlDocumentHandle(&xmlDocument);
+    TiXmlNode *pContainerXmlNode(TiXmlHandle(xmlDocumentHandle).FirstChildElement().Element());
+
+    while (pContainerXmlNode)
+    {
+        if (pContainerXmlNode->ValueStr() != "ConvolutionalNeuralNetwork")
+            return STATUS_CODE_FAILURE;
+
+        const TiXmlHandle currentHandle(pContainerXmlNode);
+
+        std::string currentName;
+        PANDORA_THROW_RESULT_IF(STATUS_CODE_SUCCESS, !=, XmlHelper::ReadValue(currentHandle, "Name", currentName));
+
+        if (currentName.empty() || (currentName.size() > 1000))
+        {
+            std::cout << "KerasModel::Initialize - Implausible ConvolutionalNeuralNetwork name extracted from xml." << std::endl;
+            return STATUS_CODE_INVALID_PARAMETER;
+        }
+
+        if (currentName == cnnName)
+            break;
+
+        pContainerXmlNode = pContainerXmlNode->NextSibling();
+    }
+
+    if (!pContainerXmlNode)
+    {
+        std::cout << "AdaBoostDecisionTree: Could not find an ConvolutionalNeuralNetwork of name " << cnnName << std::endl;
+        return STATUS_CODE_NOT_FOUND;
+    }
+
+    const TiXmlHandle xmlHandle(pContainerXmlNode);
+    this->LoadWeights(&xmlHandle);
+    return STATUS_CODE_SUCCESS;
+}
+
+//------------------------------------------------------------------------------------------------------------------------------------------
+
+void KerasModel::LoadWeights(const TiXmlHandle *const pXmlHandle)
+{
+    TiXmlElement *pCurrentXmlElement = pXmlHandle->FirstChild().Element();
+
+    while (pCurrentXmlElement)
+    {
+        if (STATUS_CODE_SUCCESS != this->ReadComponent(pCurrentXmlElement))
+            throw StatusCodeException(STATUS_CODE_INVALID_PARAMETER);
+
+        pCurrentXmlElement = pCurrentXmlElement->NextSiblingElement();
+    }
+}
+
+//------------------------------------------------------------------------------------------------------------------------------------------
+
+StatusCode KerasModel::ReadComponent(TiXmlElement *pCurrentXmlElement)
+{
+    const std::string componentName(pCurrentXmlElement->ValueStr());
+    TiXmlHandle currentHandle(pCurrentXmlElement);
+
+    if ((std::string("Name") == componentName) || (std::string("Timestamp") == componentName))
+        return STATUS_CODE_SUCCESS;
+
+    if (std::string("LayerConv2D") == componentName)
+    {
+        m_layers.emplace_back(new LayerConv2D(&currentHandle));
+        return STATUS_CODE_SUCCESS;
+    }
+
+    if (std::string("LayerActivation") == componentName)
+    {
+        m_layers.emplace_back(new LayerActivation(&currentHandle));
+        return STATUS_CODE_SUCCESS;
+    }
+
+    if (std::string("LayerMaxPooling2D") == componentName)
+    {
+        m_layers.emplace_back(new LayerMaxPooling(&currentHandle));
+        return STATUS_CODE_SUCCESS;
+    }
+
+    if (std::string("LayerFlatten") == componentName)
+    {
+        m_layers.emplace_back(new LayerFlatten(&currentHandle));
+        return STATUS_CODE_SUCCESS;
+    }
+
+    if (std::string("LayerDense") == componentName)
+    {
+        m_layers.emplace_back(new LayerDense(&currentHandle));
+        return STATUS_CODE_SUCCESS;
+    }
+
+    return STATUS_CODE_INVALID_PARAMETER;
 }
 
 //------------------------------------------------------------------------------------------------------------------------------------------
@@ -182,26 +204,6 @@ unsigned int KerasModel::GetOutputLength() const
 }
 
 //------------------------------------------------------------------------------------------------------------------------------------------
-
-Data1D KerasModel::Read1DArray(std::ifstream &inputFileStream, const int nCols)
-{
-    FloatVector data;
-    float value;
-    char valueChar;
-
-    inputFileStream >> valueChar; // For [
-
-    for (unsigned int col = 0; col < nCols; col++)
-    {
-        inputFileStream >> value;
-        data.push_back(value);
-    }
-
-    inputFileStream >> valueChar; // For ]
-    return Data1D(data);
-}
-
-//------------------------------------------------------------------------------------------------------------------------------------------
 //------------------------------------------------------------------------------------------------------------------------------------------
 
 KerasModel::DataBlock::DataBlock()
@@ -248,18 +250,9 @@ void KerasModel::DataBlock::SetData(Data3D const &/*data3D*/)
 }
 
 //------------------------------------------------------------------------------------------------------------------------------------------
-
-void KerasModel::DataBlock::ReadFromFile(const std::string &/*inputFileName*/)
-{
-}
-
-//------------------------------------------------------------------------------------------------------------------------------------------
 //------------------------------------------------------------------------------------------------------------------------------------------
 
-KerasModel::DataBlock2D::DataBlock2D() :
-    m_depth(std::numeric_limits<int>::max()),
-    m_rows(std::numeric_limits<int>::max()),
-    m_cols(std::numeric_limits<int>::max())
+KerasModel::DataBlock2D::DataBlock2D()
 {
 }
 
@@ -288,26 +281,6 @@ Data3D const &KerasModel::DataBlock2D::GetData3D() const
 void KerasModel::DataBlock2D::SetData(Data3D const &data3D)
 {
     m_data3D = data3D;
-}
-
-//------------------------------------------------------------------------------------------------------------------------------------------
-
-void KerasModel::DataBlock2D::ReadFromFile(const std::string &inputFileName)
-{
-    std::ifstream inputFile(inputFileName.c_str());
-    inputFile >> m_depth >> m_rows >> m_cols;
-
-    for (unsigned int depth = 0; depth < m_depth; depth++)
-    {
-        Data2D data2D;
-        for (unsigned int row = 0; row < m_rows; row++)
-        {
-            Data1D data1D = KerasModel::Read1DArray(inputFile, m_cols);
-            data2D.Append(data1D);
-        }
-        m_data3D.Append(data2D);
-    }
-    inputFile.close();
 }
 
 //------------------------------------------------------------------------------------------------------------------------------------------
@@ -384,13 +357,6 @@ void KerasModel::DataBlockFlat::SetData(const Data1D &data1D)
 
 //------------------------------------------------------------------------------------------------------------------------------------------
 
-void KerasModel::DataBlockFlat::ReadFromFile(const std::string &/*inputFileName*/)
-{
-    throw StatusCodeException(STATUS_CODE_NOT_ALLOWED);
-}
-
-//------------------------------------------------------------------------------------------------------------------------------------------
-
 void KerasModel::DataBlockFlat::ShowName() const
 {
     std::cout << "KerasModel::DataBlockFlat::ShowName - DataBlockFlat size " << m_data1D.GetSizeI() << std::endl;
@@ -400,7 +366,7 @@ void KerasModel::DataBlockFlat::ShowName() const
 
 void KerasModel::DataBlockFlat::ShowValues() const
 {
-    std::cout << "KerasModel::DataBlockFlat::ShowValues - DataBlockFlat values : " << std::endl;
+    std::cout << "KerasModel::DataBlockFlat::ShowValues - DataBlockFlat values : ";
 
     for (int idxI = 0; idxI < m_data1D.GetSizeI(); idxI++)
         std::cout << m_data1D.Get(idxI) << " ";
@@ -432,13 +398,7 @@ std::string KerasModel::Layer::GetName() const
 //------------------------------------------------------------------------------------------------------------------------------------------
 //------------------------------------------------------------------------------------------------------------------------------------------
 
-KerasModel::LayerFlatten::LayerFlatten() : Layer("Flatten")
-{
-}
-
-//------------------------------------------------------------------------------------------------------------------------------------------
-
-void KerasModel::LayerFlatten::LoadWeights(std::ifstream &/*inputFileStream*/)
+KerasModel::LayerFlatten::LayerFlatten(const TiXmlHandle *const /*pXmlHandle*/) : Layer("Flatten")
 {
 }
 
@@ -492,17 +452,21 @@ unsigned int KerasModel::LayerFlatten::GetOutputUnits() const
 //------------------------------------------------------------------------------------------------------------------------------------------
 //------------------------------------------------------------------------------------------------------------------------------------------
 
-KerasModel::LayerMaxPooling::LayerMaxPooling() : Layer("MaxPooling2D"),
+KerasModel::LayerMaxPooling::LayerMaxPooling(const TiXmlHandle *const pXmlHandle) : Layer("MaxPooling2D"),
      m_poolX(std::numeric_limits<int>::max()),
      m_poolY(std::numeric_limits<int>::max())
 {
-}
+    for (TiXmlElement *pHeadTiXmlElement = pXmlHandle->FirstChildElement().ToElement(); pHeadTiXmlElement != NULL; pHeadTiXmlElement = pHeadTiXmlElement->NextSiblingElement())
+    {
+        if ("MaxPooling2DConfig" == pHeadTiXmlElement->ValueStr())
+        {
+            if (TIXML_SUCCESS != pHeadTiXmlElement->QueryIntAttribute("PoolX", &m_poolX))
+                throw StatusCodeException(STATUS_CODE_NOT_FOUND);
 
-//------------------------------------------------------------------------------------------------------------------------------------------
-
-void KerasModel::LayerMaxPooling::LoadWeights(std::ifstream &inputFileStream)
-{
-    inputFileStream >> m_poolX >> m_poolY;
+            if (TIXML_SUCCESS != pHeadTiXmlElement->QueryIntAttribute("PoolY", &m_poolY))
+                throw StatusCodeException(STATUS_CODE_NOT_FOUND);
+        }
+    }
 }
 
 //------------------------------------------------------------------------------------------------------------------------------------------
@@ -519,7 +483,9 @@ KerasModel::DataBlock* KerasModel::LayerMaxPooling::CalculateOutput(const KerasM
         const unsigned int poolMaxI(m_poolY != 0 ? data3D.GetSizeI()/m_poolY : 0);
 
         for (unsigned int j = 0; j < poolMaxJ; j++)
+        {
             activeData2D.Append(Data1D(FloatVector(poolMaxI, 0.f)));
+        }
 
         activeData3D.Append(activeData2D);
     }
@@ -582,15 +548,20 @@ unsigned int KerasModel::LayerMaxPooling::GetOutputUnits() const
 //------------------------------------------------------------------------------------------------------------------------------------------
 //------------------------------------------------------------------------------------------------------------------------------------------
 
-KerasModel::LayerActivation::LayerActivation() : Layer("Activation")
+KerasModel::LayerActivation::LayerActivation(const TiXmlHandle *const pXmlHandle) : Layer("Activation")
 {
-}
+    pandora::StringVector activationTypes = {"relu", "softmax", "tanh", "sigmoid"};
 
-//------------------------------------------------------------------------------------------------------------------------------------------
+    for (TiXmlElement *pHeadTiXmlElement = pXmlHandle->FirstChildElement().ToElement(); pHeadTiXmlElement != NULL; pHeadTiXmlElement = pHeadTiXmlElement->NextSiblingElement())
+    {
+        if ("ActivationFunction" == pHeadTiXmlElement->ValueStr())
+        {
+            m_activationType = pHeadTiXmlElement->GetText();
 
-void KerasModel::LayerActivation::LoadWeights(std::ifstream &inputFileStream)
-{
-    inputFileStream >> m_activationType;
+            if (std::find(activationTypes.begin(), activationTypes.end(), m_activationType) == activationTypes.end())
+                throw StatusCodeException(STATUS_CODE_NOT_FOUND);
+        }
+    }
 }
 
 //------------------------------------------------------------------------------------------------------------------------------------------
@@ -705,93 +676,97 @@ unsigned int KerasModel::LayerActivation::GetOutputUnits() const
 //------------------------------------------------------------------------------------------------------------------------------------------
 //------------------------------------------------------------------------------------------------------------------------------------------
 
-KerasModel::LayerConv2D::LayerConv2D() : Layer("Conv2D"),
-    m_kernelsCount(std::numeric_limits<int>::max()),
-    m_nDepth(std::numeric_limits<int>::max()),
+KerasModel::LayerConv2D::LayerConv2D(const TiXmlHandle *const pXmlHandle) : Layer("Conv2D"),
+    m_nKernels(std::numeric_limits<int>::max()),
+    m_nDeep(std::numeric_limits<int>::max()),
     m_nRows(std::numeric_limits<int>::max()),
     m_nCols(std::numeric_limits<int>::max())
 {
-}
+    bool configLoaded(false);
 
-//------------------------------------------------------------------------------------------------------------------------------------------
-
-void KerasModel::LayerConv2D::LoadWeights(std::ifstream &inputFileStream)
-{
-    char valueChar(' ');
-    std::string valueStr("");
-    float value(std::numeric_limits<float>::max());
-    bool skip(false);
-    inputFileStream >> m_nRows >> m_nCols >> m_nDepth >> m_kernelsCount >> m_borderMode;
-
-    if (m_borderMode == "[")
+    for (TiXmlElement *pHeadTiXmlElement = pXmlHandle->FirstChildElement().ToElement(); pHeadTiXmlElement != NULL; pHeadTiXmlElement = pHeadTiXmlElement->NextSiblingElement())
     {
-        m_borderMode = "valid";
-        skip = true;
-    }
-
-    for (unsigned int kernel = 0; kernel < m_kernelsCount; kernel++)
-    {
-        Data3D data3D;
-        for (unsigned int depth = 0; depth < m_nDepth; depth++)
+        if ("LayerConv2DConfig" == pHeadTiXmlElement->ValueStr())
         {
-            Data2D data2D;
-            for (unsigned int row = 0; row < m_nRows; row++)
-            {
-                if (!skip)
-                {
-                    // ATTN: For the '['
-                    inputFileStream >> valueChar;
-                }
-                else
-                {
-                    skip = false;
-                }
+            m_borderMode = pHeadTiXmlElement->Attribute("borderMode");
 
-                Data1D data1D;
-                for (unsigned int col = 0; col < m_nCols; col++)
-                {
-                    inputFileStream >> value;
-                    data1D.Append(value);
-                }
+            if (m_borderMode.empty())
+                throw StatusCodeException(STATUS_CODE_NOT_FOUND);
 
-                // ATTN: For the ']'
-                inputFileStream >> valueChar;
-                data2D.Append(data1D);
-            }
-            data3D.Append(data2D);
+            if (TIXML_SUCCESS != pHeadTiXmlElement->QueryIntAttribute("nKernels", &m_nKernels))
+                throw StatusCodeException(STATUS_CODE_NOT_FOUND);
+
+            if (TIXML_SUCCESS != pHeadTiXmlElement->QueryIntAttribute("nDeep", &m_nDeep))
+                throw StatusCodeException(STATUS_CODE_NOT_FOUND);
+
+            if (TIXML_SUCCESS != pHeadTiXmlElement->QueryIntAttribute("nRows", &m_nRows))
+                throw StatusCodeException(STATUS_CODE_NOT_FOUND);
+
+            if (TIXML_SUCCESS != pHeadTiXmlElement->QueryIntAttribute("nCols", &m_nCols))
+                throw StatusCodeException(STATUS_CODE_NOT_FOUND);
+
+            m_kernels = Data4D(m_nKernels, Data3D(m_nDeep, Data2D(m_nRows, Data1D(m_nCols, std::numeric_limits<float>::max()))));
+            m_bias = Data1D(m_nKernels, 0.f);
+            configLoaded = true;
         }
-        m_kernels.Append(data3D);
+        else if ("Conv2DWeight" == pHeadTiXmlElement->ValueStr())
+        {
+            if (!configLoaded)
+                throw StatusCodeException(STATUS_CODE_NOT_FOUND);
+
+            int kernel(std::numeric_limits<int>::max()), depth(std::numeric_limits<int>::max()), row(std::numeric_limits<int>::max()), col(std::numeric_limits<int>::max());
+            double value(std::numeric_limits<double>::max());
+
+            if (TIXML_SUCCESS != pHeadTiXmlElement->QueryIntAttribute("kernel", &kernel))
+                throw StatusCodeException(STATUS_CODE_NOT_FOUND);
+
+            if (TIXML_SUCCESS != pHeadTiXmlElement->QueryIntAttribute("depth", &depth))
+                throw StatusCodeException(STATUS_CODE_NOT_FOUND);
+
+            if (TIXML_SUCCESS != pHeadTiXmlElement->QueryIntAttribute("row", &row))
+                throw StatusCodeException(STATUS_CODE_NOT_FOUND);
+
+            if (TIXML_SUCCESS != pHeadTiXmlElement->QueryIntAttribute("col", &col))
+                throw StatusCodeException(STATUS_CODE_NOT_FOUND);
+
+            if (TIXML_SUCCESS != pHeadTiXmlElement->QueryDoubleAttribute("value", &value))
+                throw StatusCodeException(STATUS_CODE_NOT_FOUND);
+
+            m_kernels.Set(col, row, depth, kernel, value);
+        }
+        else if ("Conv2DBias" == pHeadTiXmlElement->ValueStr())
+        {
+            if (!configLoaded)
+                throw StatusCodeException(STATUS_CODE_NOT_FOUND);
+
+            int kernel(std::numeric_limits<int>::max());
+            double value(std::numeric_limits<double>::max());
+
+            if (TIXML_SUCCESS != pHeadTiXmlElement->QueryIntAttribute("kernel", &kernel))
+                throw StatusCodeException(STATUS_CODE_NOT_FOUND);
+
+            if (TIXML_SUCCESS != pHeadTiXmlElement->QueryDoubleAttribute("bias", &value))
+                throw StatusCodeException(STATUS_CODE_NOT_FOUND);
+
+            m_bias.Set(kernel, value);
+        }
     }
-
-    // ATTN: For the '['
-    inputFileStream >> valueChar;
-
-    for (unsigned int kernel = 0; kernel < m_kernelsCount; kernel++)
-    {
-        inputFileStream >> value;
-        m_bias.Append(value);
-    }
-
-    // ATTN: For the '['
-    inputFileStream >> valueChar;
 }
 
 //------------------------------------------------------------------------------------------------------------------------------------------
 
 KerasModel::DataBlock* KerasModel::LayerConv2D::CalculateOutput(const KerasModel::DataBlock* pDataBlock) const
 {
-// FIX
     unsigned int startX(std::floor((m_kernels.GetSizeJ() - 1) * 0.5f));
     unsigned int startY(std::floor((m_kernels.GetSizeI() - 1) * 0.5f));
 
     const Data3D data3D(pDataBlock->GetData3D());
     Data3D activeData3D;
 
-    // Border mode asks whether to shrink grid when concolving or leave it as same size as input
     unsigned int nOutputRows((m_borderMode == "valid") ? data3D.GetSizeJ() - 2 * startX : data3D.GetSizeJ());
     unsigned int nOutputCols((m_borderMode == "valid") ? data3D.GetSizeI() - 2 * startY : data3D.GetSizeI());
 
-    for (unsigned int kernel = 0; kernel < m_kernels.GetSizeL(); kernel++)
+    for (unsigned int l = 0; l < m_kernels.GetSizeL(); l++)
     {
         Data2D data2D;
 
@@ -802,17 +777,17 @@ KerasModel::DataBlock* KerasModel::LayerConv2D::CalculateOutput(const KerasModel
         activeData3D.Append(data2D);
     }
 
-    for (unsigned int kernel = 0; kernel < m_kernels.GetSizeL(); kernel++)
+    for (unsigned int l = 0; l < m_kernels.GetSizeL(); l++)
     {
         for(unsigned int k = 0; k < data3D.GetSizeK(); k++)
         {
-            Data2D data2D(m_borderMode == "valid" ? this->Convolve_SingleDepthValid(data3D.GetData2D(k), m_kernels.GetData2D(k, kernel)) : this->Convolve_SingleDepthSame(data3D.GetData2D(k), m_kernels.GetData2D(k, kernel)));
+            Data2D data2D(m_borderMode == "valid" ? this->Convolve_SingleDepthValid(data3D.GetData2D(k), m_kernels.GetData2D(k, l)) : this->Convolve_SingleDepthSame(data3D.GetData2D(k), m_kernels.GetData2D(k, l)));
 
             for(unsigned int j = 0; j < data2D.GetSizeJ(); j++)
             {
                 for(unsigned int i = 0; i < data2D.GetSizeI(); i++)
                 {
-                    activeData3D.Set(i, j, kernel, activeData3D.Get(i, j, kernel) + data2D.Get(i, j));
+                    activeData3D.Set(i, j, l, activeData3D.Get(i, j, l) + data2D.Get(i, j));
                 }
             }
         }
@@ -821,7 +796,7 @@ KerasModel::DataBlock* KerasModel::LayerConv2D::CalculateOutput(const KerasModel
         {
             for(unsigned int i = 0; i < activeData3D.GetSizeI(); i++)
             {
-                activeData3D.Set(i, j, kernel, activeData3D.Get(i, j, kernel) + m_bias.Get(kernel));
+                activeData3D.Set(i, j, l, activeData3D.Get(i, j, l) + m_bias.Get(l));
             }
         }
     }
@@ -833,31 +808,26 @@ KerasModel::DataBlock* KerasModel::LayerConv2D::CalculateOutput(const KerasModel
 
 //------------------------------------------------------------------------------------------------------------------------------------------
 
-Data2D KerasModel::LayerConv2D::Convolve_SingleDepthValid(const Data2D &data2D, const Data2D &filter) const
+Data2D KerasModel::LayerConv2D::Convolve_SingleDepthValid(const Data2D &data2D, const Data2D &kernel) const
 {
-// FIX
-    // Function to apply convolution and give output that is reduced in size (e.g. 5x5 * 3x3 = 3x3)
-    unsigned int filterSizeJ(filter.GetSizeJ());
-    unsigned int filterSizeI(filter.GetSizeI());
+    unsigned int kernelSizeJ(kernel.GetSizeJ());
+    unsigned int kernelSizeI(kernel.GetSizeI());
 
-    unsigned int startJ((filterSizeJ - 1) * 0.5f);
-    unsigned int startI((filterSizeI - 1) * 0.5f);
+    unsigned int startJ((kernelSizeJ - 1) * 0.5f);
+    unsigned int startI((kernelSizeI - 1) * 0.5f);
 
-    // Output data product with correct size to recieve result of convolution
     Data2D activeData2D(data2D.GetSizeJ() - 2 * startJ, Data1D(data2D.GetSizeI() - 2 * startI, 0.f));
 
-    // Loop over all points in the original data set where the filer can be applied
     for (unsigned int j = startJ; j < data2D.GetSizeJ() - startJ; j++)
     {
         for (unsigned int i = startI; i < data2D.GetSizeI() - startI; i++)
         {
-            // Apply the filter to the data, seems like the Kernel is flipped so instead of f11*d11 + f12*d12 + ... you'd start with fnn*d11 + fnn-1*d12 + ...
             float sum(0.f);
-            for (unsigned int filterJ = 0; filterJ < filterSizeJ; filterJ++)
+            for (unsigned int kernelJ = 0; kernelJ < kernelSizeJ; kernelJ++)
             {
-                for (unsigned int filterI = 0; filterI < filterSizeI; filterI++)
+                for (unsigned int kernelI = 0; kernelI < kernelSizeI; kernelI++)
                 {
-                    sum += filter.Get(filterI, filterJ) * data2D.Get(i - startI + filterI, j - startJ + filterJ);
+                    sum += kernel.Get(kernelI, kernelJ) * data2D.Get(i - startI + kernelI, j - startJ + kernelJ);
                 }
             }
             activeData2D.Set(i - startI, j - startJ, sum);
@@ -868,38 +838,33 @@ Data2D KerasModel::LayerConv2D::Convolve_SingleDepthValid(const Data2D &data2D, 
 
 //------------------------------------------------------------------------------------------------------------------------------------------
 
-Data2D KerasModel::LayerConv2D::Convolve_SingleDepthSame(const Data2D &data2D, const Data2D &filter) const
+Data2D KerasModel::LayerConv2D::Convolve_SingleDepthSame(const Data2D &data2D, const Data2D &kernel) const
 {
-// FIX
-    // Function to apply convolution and give output that is the same size as input data
-    unsigned int filterSizeJ(filter.GetSizeJ());
-    unsigned int filterSizeI(filter.GetSizeI());
+    unsigned int kernelSizeJ(kernel.GetSizeJ());
+    unsigned int kernelSizeI(kernel.GetSizeI());
 
-    unsigned int startJ((filterSizeJ - 1) * 0.5f);
-    unsigned int startI((filterSizeI - 1) * 0.5f);
+    unsigned int startJ((kernelSizeJ - 1) * 0.5f);
+    unsigned int startI((kernelSizeI - 1) * 0.5f);
 
     unsigned int maxDataJ(data2D.GetSizeJ() - 1);
     unsigned int maxDataI(data2D.GetSizeI() - 1);
 
-    // Output data product with correct size to recieve result of convolution
     Data2D activeData2D(data2D.GetSizeJ(), Data1D(data2D.GetSizeI(), 0.f));
 
-    // Loop over all points in the original data set where the filer can be applied
     for (unsigned int j = startJ; j < data2D.GetSizeJ() - startJ; j++)
     {
         for (unsigned int i = startI; i < data2D.GetSizeI() - startI; i++)
         {
-            // Apply the filter to the data, seems like the Kernel is flipped so instead of f11*d11 + f12*d12 + ... you'd start with fnn*d11 + fnn-1*d12 + ...
             float sum(0.f);
-            for (unsigned int filterJ = 0; filterJ < filterSizeJ; filterJ++)
+            for (unsigned int kernelJ = 0; kernelJ < kernelSizeJ; kernelJ++)
             {
-                for (unsigned int filterI = 0; filterI < filterSizeI; filterI++)
+                for (unsigned int kernelI = 0; kernelI < kernelSizeI; kernelI++)
                 {
-                    if ((static_cast<int>(j - startJ + filterJ) < 0) || (static_cast<int>(j - startJ + filterJ) > maxDataJ) ||
-                        (static_cast<int>(i - startI + filterI) < 0) || (static_cast<int>(i - startI + filterI) > maxDataI))
+                    if ((static_cast<int>(j - startJ + kernelJ) < 0) || (static_cast<int>(j - startJ + kernelJ) > maxDataJ) ||
+                        (static_cast<int>(i - startI + kernelI) < 0) || (static_cast<int>(i - startI + kernelI) > maxDataI))
                         continue;
 
-                    sum += filter.Get(filterI, filterJ) * data2D.Get(i - startI + filterI, j - startJ + filterJ);
+                    sum += kernel.Get(kernelI, kernelJ) * data2D.Get(i - startI + kernelI, j - startJ + kernelJ);
                 }
             }
             activeData2D.Set(i, j, sum);
@@ -926,78 +891,100 @@ unsigned int KerasModel::LayerConv2D::GetNInputCols() const
 
 unsigned int KerasModel::LayerConv2D::GetOutputUnits() const
 {
-    return m_kernelsCount;
+    return m_nKernels;
 }
 
 //------------------------------------------------------------------------------------------------------------------------------------------
 //------------------------------------------------------------------------------------------------------------------------------------------
 
-KerasModel::LayerDense::LayerDense() : Layer("Dense"),
-    m_inputCount(std::numeric_limits<int>::max()),
-    m_nNeurons(std::numeric_limits<int>::max())
+KerasModel::LayerDense::LayerDense(const TiXmlHandle *const pXmlHandle) : Layer("Dense"),
+    m_nInputNodes(std::numeric_limits<int>::max()),
+    m_nOutputNodes(std::numeric_limits<int>::max())
 {
-}
+    bool configLoaded(false);
 
-//------------------------------------------------------------------------------------------------------------------------------------------
-
-void KerasModel::LayerDense::LoadWeights(std::ifstream &inputFileStream)
-{
-    inputFileStream >> m_inputCount >> m_nNeurons;
-
-    char valueChar(' ');
-    float value(std::numeric_limits<float>::max());
-
-    for (unsigned int count = 0; count < m_inputCount; count++)
+    for (TiXmlElement *pHeadTiXmlElement = pXmlHandle->FirstChildElement().ToElement(); pHeadTiXmlElement != NULL; pHeadTiXmlElement = pHeadTiXmlElement->NextSiblingElement())
     {
-        Data1D data1D;
-        inputFileStream >> valueChar; // for '['
-
-        for (unsigned int neuronCount = 0; neuronCount < m_nNeurons; neuronCount++)
+        if ("LayerDenseConfig" == pHeadTiXmlElement->ValueStr())
         {
-            inputFileStream >> value;
-            data1D.Append(value);
+            if (TIXML_SUCCESS != pHeadTiXmlElement->QueryIntAttribute("nInputNodes", &m_nInputNodes))
+                throw StatusCodeException(STATUS_CODE_NOT_FOUND);
+
+            if (TIXML_SUCCESS != pHeadTiXmlElement->QueryIntAttribute("nOutputNodes", &m_nOutputNodes))
+                throw StatusCodeException(STATUS_CODE_NOT_FOUND);
+
+            m_weights = Data2D(m_nInputNodes, Data1D(m_nOutputNodes, std::numeric_limits<float>::max()));
+            m_bias = Data1D(m_nInputNodes, std::numeric_limits<float>::max());
+            configLoaded = true;
         }
+        else if ("DenseWeight" == pHeadTiXmlElement->ValueStr())
+        {
+            if (!configLoaded)
+                throw StatusCodeException(STATUS_CODE_NOT_FOUND);
 
-        inputFileStream >> valueChar; // for ']'
-        m_weights.Append(data1D);
+            int connection(std::numeric_limits<int>::max());
+
+            if (TIXML_SUCCESS != pHeadTiXmlElement->QueryIntAttribute("connection", &connection))
+                    throw StatusCodeException(STATUS_CODE_NOT_FOUND);
+
+            for (int i = 0; i < m_nOutputNodes; i++)
+            {
+                double value(std::numeric_limits<double>::max());
+                std::string name("weight" + std::to_string(i));
+
+                if (TIXML_SUCCESS != pHeadTiXmlElement->QueryDoubleAttribute(name.c_str(), &value))
+                    throw StatusCodeException(STATUS_CODE_NOT_FOUND);
+
+                m_weights.Set(i, connection, value);
+            }
+        }
+        else if ("DenseBias" == pHeadTiXmlElement->ValueStr())
+        {
+            if (!configLoaded)
+                throw StatusCodeException(STATUS_CODE_NOT_FOUND);
+
+            for (int i = 0; i < m_nOutputNodes; i++)
+            {
+                double value(std::numeric_limits<double>::max());
+                std::string name("bias" + std::to_string(i));
+
+                if (TIXML_SUCCESS != pHeadTiXmlElement->QueryDoubleAttribute(name.c_str(), &value))
+                    throw StatusCodeException(STATUS_CODE_NOT_FOUND);
+
+                m_bias.Set(i, value);
+            }
+        }
     }
 
-    inputFileStream >> valueChar; // for '['
-
-    for (unsigned int neuronCount = 0; neuronCount < m_nNeurons; neuronCount++)
-    {
-        inputFileStream >> value;
-        m_bias.Append(value);
-    }
-
-    inputFileStream >> valueChar; // for ']'
+    if (m_weights.GetSizeJ() != m_nInputNodes || m_bias.GetSizeI() != m_nInputNodes)
+        throw StatusCodeException(STATUS_CODE_NOT_FOUND);
 }
 
 //------------------------------------------------------------------------------------------------------------------------------------------
 
 KerasModel::DataBlock* KerasModel::LayerDense::CalculateOutput(const KerasModel::DataBlock* pDataBlock) const
 {
-    KerasModel::DataBlockFlat *pDataBlockFlat = new KerasModel::DataBlockFlat(m_nNeurons, 0.f);
+    KerasModel::DataBlockFlat *pDataBlockFlat = new KerasModel::DataBlockFlat(m_nOutputNodes, 0.f);
     Data1D activeData1D(pDataBlockFlat->GetData1D());
     const Data1D data1D(pDataBlock->GetData1D());
 
-    for (unsigned int weightCount = 0; weightCount < m_weights.GetSizeJ(); weightCount++)
+    for (unsigned int j = 0; j < m_weights.GetSizeJ(); j++)
     {
-        const Data1D weights(m_weights.GetData1D(weightCount));
-        float data(data1D.Get(weightCount));
+        const Data1D connectionWeights(m_weights.GetData1D(j));
+        float inputData(data1D.Get(j));
 
-        unsigned int neuronCounter(0);
+        unsigned int i(0);
 
-        while (neuronCounter < m_nNeurons)
+        while (i < m_nOutputNodes)
         {
-            activeData1D.Set(neuronCounter, activeData1D.Get(neuronCounter) + (weights.Get(neuronCounter) * data));
-            neuronCounter++;
+            activeData1D.Set(i, activeData1D.Get(i) + (connectionWeights.Get(i) * inputData));
+            i++;
         }
     }
 
-    for (unsigned int biasCount = 0; biasCount < m_nNeurons; biasCount++)
+    for (unsigned int i = 0; i < m_nOutputNodes; i++)
     {
-        activeData1D.Set(biasCount, activeData1D.Get(biasCount) + m_bias.Get(biasCount));
+        activeData1D.Set(i, activeData1D.Get(i) + m_bias.Get(i));
     }
 
     pDataBlockFlat->SetData(activeData1D);
@@ -1015,14 +1002,14 @@ unsigned int KerasModel::LayerDense::GetNInputRows() const
 
 unsigned int KerasModel::LayerDense::GetNInputCols() const
 {
-    return m_inputCount;
+    return m_nInputNodes;
 }
 
 //------------------------------------------------------------------------------------------------------------------------------------------
 
 unsigned int KerasModel::LayerDense::GetOutputUnits() const
 {
-    return m_nNeurons;
+    return m_nOutputNodes;
 }
 
 } // namespace lar_content

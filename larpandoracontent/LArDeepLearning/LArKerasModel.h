@@ -28,22 +28,24 @@ namespace lar_content
 class KerasModel
 {
 public:
-//    typedef pandora::FloatVector Data1D;
-//    typedef std::vector<Data1D> Data2D;
-//    typedef std::vector<Data2D> Data3D;
-//    typedef std::vector<Data3D> Data4D;
 
     /**
      *  @brief  Constructor.
      */
-    KerasModel(const std::string &inputFileName, bool verbose);
+    KerasModel();
 
     /**
      *  @brief  Destructor.
      */
     ~KerasModel();
 
-    //pandora::StatusCode Initialize(const std::string &parameterLocation, const std::string &bdtName);
+    /**
+     *  @brief  Initialize
+     *
+     *  @param  cnnXmlFileName model xml file
+     *  @param  cnnName model name
+     */
+    pandora::StatusCode Initialize(const std::string &cnnXmlFileName, const std::string &cnnName);
 
     class DataBlock
     {
@@ -69,8 +71,6 @@ public:
 
         virtual void SetData(const Data3D &data3D);
 
-        virtual void ReadFromFile(const std::string &inputFileName);
-
         virtual void ShowName() const = 0;
 
         virtual void ShowValues() const = 0;
@@ -89,17 +89,12 @@ public:
 
         void SetData(const Data3D &data3D);
 
-        void ReadFromFile(const std::string &inputFileName);
-
         void ShowName() const;
 
         void ShowValues() const;
 
     private:
         Data3D     m_data3D;  ///< Data
-        int        m_depth;   ///< Depth of data
-        int        m_rows;    ///< Number of rows in data
-        int        m_cols;    ///< Number of columns in data
     };
 
     class DataBlockFlat : public DataBlock
@@ -119,8 +114,6 @@ public:
 
         void SetData(const Data1D &data1D);
 
-        void ReadFromFile(const std::string &inputFileName);
-
         void ShowName() const;
 
         void ShowValues() const;
@@ -135,8 +128,6 @@ public:
         Layer(const std::string name);
 
         virtual ~Layer();
-
-        virtual void LoadWeights(std::ifstream &inputFileStream) = 0;
 
         virtual DataBlock* CalculateOutput(const DataBlock* pDataBlock) const = 0;
 
@@ -155,9 +146,7 @@ public:
     class LayerFlatten : public Layer
     {
     public:
-        LayerFlatten();
-
-        void LoadWeights(std::ifstream &inputFileStream);
+        LayerFlatten(const pandora::TiXmlHandle *const /*pXmlHandle*/);
 
         DataBlock* CalculateOutput(const DataBlock* pDataBlock) const;
 
@@ -171,9 +160,7 @@ public:
     class LayerMaxPooling : public Layer
     {
     public:
-        LayerMaxPooling();
-
-        void LoadWeights(std::ifstream &inputFileStream);
+        LayerMaxPooling(const pandora::TiXmlHandle *const pXmlHandle);
 
         DataBlock* CalculateOutput(const DataBlock* pDataBlock) const;
 
@@ -184,16 +171,14 @@ public:
         unsigned int GetOutputUnits() const;
 
     private:
-        unsigned int     m_poolX;    ///< The pool size along x
-        unsigned int     m_poolY;    ///< The pool size along y
+        int     m_poolX;    ///< The pool size along x
+        int     m_poolY;    ///< The pool size along y
     };
 
     class LayerActivation : public Layer
     {
     public:
-        LayerActivation();
-
-        void LoadWeights(std::ifstream &inputFileStream);
+        LayerActivation(const pandora::TiXmlHandle *const pXmlHandle);
 
         DataBlock* CalculateOutput(const DataBlock* pDataBlock) const;
 
@@ -210,9 +195,7 @@ public:
     class LayerConv2D : public Layer
     {
     public:
-        LayerConv2D();
-
-        void LoadWeights(std::ifstream &inputFileStream);
+        LayerConv2D(const pandora::TiXmlHandle *const pXmlHandle);
 
         DataBlock* CalculateOutput(const DataBlock* pDataBlock) const;
 
@@ -246,8 +229,8 @@ public:
         Data4D          m_kernels;         ///< Kernels
         Data1D          m_bias;            ///< Bias
         std::string     m_borderMode;      ///< Method to deal with boardering squares
-        int             m_kernelsCount;    ///< Number of kernels
-        int             m_nDepth;          ///< Depth of convolution
+        int             m_nKernels;        ///< Number of kernels
+        int             m_nDeep;           ///< Depth of convolution
         int             m_nRows;           ///< Number of rows in convolution
         int             m_nCols;           ///< Number of columns in convolution
     };
@@ -255,9 +238,7 @@ public:
     class LayerDense : public Layer
     {
     public:
-        LayerDense();
-
-        void LoadWeights(std::ifstream &inputFileStream);
+        LayerDense(const pandora::TiXmlHandle *const pXmlHandle);
 
         DataBlock* CalculateOutput(const DataBlock* pDataBlock) const;
 
@@ -270,14 +251,23 @@ public:
     private:
         Data2D          m_weights;         ///< Weights to apply
         Data1D          m_bias;            ///< Bias to apply
-        int             m_inputCount;      ///< Input count
-        int             m_nNeurons;        ///< Number of neurons
+        int             m_nInputNodes;     ///< Number of input nodes
+        int             m_nOutputNodes;    ///< Number of output nodes
     };
 
     /**
      *  @brief  Load the weights for the Keras model
+     *
+     *  @param  pXmlHandle
      */
-    void LoadWeights(const std::string &inputFileName);
+    void LoadWeights(const pandora::TiXmlHandle *const pXmlHandle);
+
+    /**
+     *  @brief  Read component of model
+     *
+     *  @param  pCurrentXmlElement
+     */
+    pandora::StatusCode ReadComponent(pandora::TiXmlElement *pCurrentXmlElement);
 
     /**
      *  @brief  Calculate the outcomes based on the data
@@ -293,18 +283,8 @@ public:
 
     unsigned int GetOutputLength() const;
 
-    /**
-     *  @brief  Load a row vector
-     *
-     *  @param  inputFileStream
-     *  @param  nCols in file
-     */
-    static Data1D Read1DArray(std::ifstream &inputFileStream, const int nCols);
+    typedef std::vector<const Layer *> Layers;
 
-    typedef std::vector<Layer *> Layers;
-
-    int        m_nLayers;           ///< The number of layers in the model
-    int        m_nActiveLayers;     ///< The number of layers in the model that are active in the compute output i.e. excluding dropout layers
     Layers     m_layers;            ///< The layers in the model
     bool       m_verbose;           ///< Print stuff maybe
 };

@@ -91,7 +91,8 @@ StatusCode CaloHitEventDumpAlgorithm::Run()
         return STATUS_CODE_SUCCESS;
     }
 
-    KerasModel kerasModel("test.txt", m_verbose);
+    KerasModel kerasModel;
+    kerasModel.Initialize("Testing.xml", "TrackShowerId");
 
 // SingleImage.txt Test
 //    TwoDHistogram twoDHistogram(m_gridSize, -1.f * m_gridDimensions/2.f,  m_gridDimensions/2.f, m_gridSize, -1.f * m_gridDimensions/2.f,  m_gridDimensions/2.f);
