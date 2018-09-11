@@ -137,7 +137,7 @@ StatusCode KerasModel::ReadComponent(TiXmlElement *pCurrentXmlElement)
 
 //------------------------------------------------------------------------------------------------------------------------------------------
 
-void KerasModel::CalculateOutput(const KerasModel::DataBlock *pDataBlock, Data1D &outputData1D, const pandora::Algorithm *const /*pAlgorithm*/) const
+void KerasModel::CalculateOutput(const KerasModel::DataBlock *pDataBlock, Data1D &outputData1D, const pandora::Algorithm *const pAlgorithm) const
 {
     const KerasModel::DataBlock *pInputDataBlock = pDataBlock;
     const KerasModel::DataBlock *pOutputDataBlock(nullptr);
@@ -147,6 +147,24 @@ void KerasModel::CalculateOutput(const KerasModel::DataBlock *pDataBlock, Data1D
         try
         {
             pOutputDataBlock = pLayer->CalculateOutput(pInputDataBlock);
+
+            if (pLayer->GetName() == "Conv2D")
+            {
+                const int m_gridSize(14);
+                Data3D outputData3D = pOutputDataBlock->GetData3D();
+                for (unsigned int k = 0; k < outputData3D.GetSizeK(); k++)
+                {
+                    TwoDHistogram twoDHistogram(m_gridSize, 0.f,  m_gridSize, m_gridSize, 0.f,  m_gridSize);
+                    for (unsigned int j = 0; j < outputData3D.GetSizeJ(); j++)
+                    {
+                        for (unsigned int i = 0; i < outputData3D.GetSizeI(); i++)
+                        {
+                            twoDHistogram.Fill(i,j,outputData3D.Get(i,j,k));
+                        }
+                    }
+                    PandoraMonitoringApi::DrawPandoraHistogram(pAlgorithm->GetPandora(), twoDHistogram, "COLZ");
+                }
+            }
         }
         catch(...)
         {
@@ -410,11 +428,12 @@ KerasModel::DataBlock* KerasModel::LayerFlatten::CalculateOutput(const KerasMode
     KerasModel::DataBlockFlat *pDataBlockFlat = new KerasModel::DataBlockFlat(data3D.GetSizeI() * data3D.GetSizeJ() * data3D.GetSizeK());
     Data1D data1D;
 
-    for (unsigned int k = 0; k < data3D.GetSizeK(); k++)
+    // ATTN: This ordering is expected by downstream layers, do not change
+    for (unsigned int j = 0; j < data3D.GetSizeJ(); j++)
     {
-        for (unsigned int j = 0; j < data3D.GetSizeJ(); j++)
+        for (unsigned int i = 0; i < data3D.GetSizeI(); i++)
         {
-            for (unsigned int i = 0; i < data3D.GetSizeI(); i++)
+            for (unsigned int k = 0; k < data3D.GetSizeK(); k++)
             {
                 data1D.Append(data3D.Get(i,j,k));
             }
@@ -803,6 +822,7 @@ KerasModel::DataBlock* KerasModel::LayerConv2D::CalculateOutput(const KerasModel
 
     KerasModel::DataBlock2D *pDataBlock2D = new KerasModel::DataBlock2D();
     pDataBlock2D->SetData(activeData3D);
+    pDataBlock2D->ShowValues();
     return pDataBlock2D;
 }
 

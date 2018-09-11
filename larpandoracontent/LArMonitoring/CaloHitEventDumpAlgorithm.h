@@ -47,6 +47,8 @@ private:
     bool          m_verbose;                  ///< Print model information
     std::string   m_treeName;                 ///< Monitoring tree name
     std::string   m_fileName;                 ///< Monitoring file name
+    std::string   m_cnnModelXml;
+    std::string   m_cnnModelName;
     int           m_gridSize;                 ///< Number of bins in grid
     float         m_gridDimensions;           ///< Physical dimension of grid
     bool          m_useTrainingMode;          ///< Should use training mode. If true, training examples will be written to the output file
