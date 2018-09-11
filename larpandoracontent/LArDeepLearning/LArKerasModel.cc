@@ -137,7 +137,7 @@ StatusCode KerasModel::ReadComponent(TiXmlElement *pCurrentXmlElement)
 
 //------------------------------------------------------------------------------------------------------------------------------------------
 
-void KerasModel::CalculateOutput(const KerasModel::DataBlock *pDataBlock, Data1D &outputData1D, const pandora::Algorithm *const pAlgorithm) const
+void KerasModel::CalculateOutput(const KerasModel::DataBlock *pDataBlock, Data1D &outputData1D, const pandora::Algorithm *const /*pAlgorithm*/) const
 {
     const KerasModel::DataBlock *pInputDataBlock = pDataBlock;
     const KerasModel::DataBlock *pOutputDataBlock(nullptr);
@@ -147,24 +147,6 @@ void KerasModel::CalculateOutput(const KerasModel::DataBlock *pDataBlock, Data1D
         try
         {
             pOutputDataBlock = pLayer->CalculateOutput(pInputDataBlock);
-
-            if (pLayer->GetName() == "Conv2D")
-            {
-                const int m_gridSize(14);
-                Data3D outputData3D = pOutputDataBlock->GetData3D();
-                for (unsigned int k = 0; k < outputData3D.GetSizeK(); k++)
-                {
-                    TwoDHistogram twoDHistogram(m_gridSize, 0.f,  m_gridSize, m_gridSize, 0.f,  m_gridSize);
-                    for (unsigned int j = 0; j < outputData3D.GetSizeJ(); j++)
-                    {
-                        for (unsigned int i = 0; i < outputData3D.GetSizeI(); i++)
-                        {
-                            twoDHistogram.Fill(i,j,outputData3D.Get(i,j,k));
-                        }
-                    }
-                    PandoraMonitoringApi::DrawPandoraHistogram(pAlgorithm->GetPandora(), twoDHistogram, "COLZ");
-                }
-            }
         }
         catch(...)
         {

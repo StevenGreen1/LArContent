@@ -111,37 +111,14 @@ StatusCode CaloHitEventDumpAlgorithm::Run()
             continue;
         }
 
-        //TwoDHistogram twoDHistogram(m_gridSize, -1.f * m_gridDimensions/2.f,  m_gridDimensions/2.f, m_gridSize, -1.f * m_gridDimensions/2.f,  m_gridDimensions/2.f);
-        TwoDHistogram twoDHistogram(m_gridSize, -1.f * m_gridSize/2.f,  m_gridSize/2.f, m_gridSize, -1.f * m_gridSize/2.f,  m_gridSize/2.f);
+        TwoDHistogram twoDHistogram(m_gridSize, -1.f * m_gridDimensions/2.f,  m_gridDimensions/2.f, m_gridSize, -1.f * m_gridDimensions/2.f,  m_gridDimensions/2.f);
 
-    const int xOffset(8);
-    const int yOffset(8);
-    twoDHistogram.Fill(8-xOffset, 8-yOffset, 66 * 10000.f / 256.f);
-    twoDHistogram.Fill(9-xOffset, 8-yOffset, 187 * 10000.f / 256.f);
-    twoDHistogram.Fill(8-xOffset, 9-yOffset, 11 * 10000.f / 256.f);
-    twoDHistogram.Fill(9-xOffset, 9-yOffset, 9 * 10000.f / 256.f);
-    twoDHistogram.Fill(10-xOffset, 9-yOffset, 63 * 10000.f / 256.f);
-    twoDHistogram.Fill(11-xOffset, 9-yOffset, 2 * 10000.f / 256.f);
-    twoDHistogram.Fill(10-xOffset, 8-yOffset, 5 * 10000.f / 256.f);
-    twoDHistogram.Fill(10-xOffset, 10-yOffset, 37 * 10000.f / 256.f);
-    twoDHistogram.Fill(11-xOffset, 10-yOffset, 17 * 10000.f / 256.f);
-    twoDHistogram.Fill(10-xOffset, 11-yOffset, 10 * 10000.f / 256.f);
-    twoDHistogram.Fill(11-xOffset, 11-yOffset, 65 * 10000.f / 256.f);
-    twoDHistogram.Fill(12-xOffset, 11-yOffset, 10 * 10000.f / 256.f);
-    twoDHistogram.Fill(12-xOffset, 12-yOffset, 60 * 10000.f / 256.f);
-    twoDHistogram.Fill(12-xOffset, 13-yOffset, 29 * 10000.f / 256.f);
-    twoDHistogram.Fill(13-xOffset, 13-yOffset, 44 * 10000.f / 256.f);
-    twoDHistogram.Fill(13-xOffset, 14-yOffset, 50 * 10000.f / 256.f);
-    twoDHistogram.Fill(14-xOffset, 14-yOffset, 10 * 10000.f / 256.f);
-    twoDHistogram.Fill(14-xOffset, 15-yOffset, 78 * 10000.f / 256.f);
-    PANDORA_MONITORING_API(DrawPandoraHistogram(this->GetPandora(), twoDHistogram, "COLZ"));
-/*
         for (const CaloHit *pNeighbourCaloHit : wCaloHitList)
         {
             CartesianVector relativePosition(pNeighbourCaloHit->GetPositionVector() - pTargetCaloHit->GetPositionVector());
-            twoDHistogram.Fill(relativePosition.GetX(), relativePosition.GetZ(), pNeighbourCaloHit->GetInputEnergy()); // * 256.f / 10000.f);
+            twoDHistogram.Fill(relativePosition.GetX(), relativePosition.GetZ(), pNeighbourCaloHit->GetInputEnergy());
         }
-*/
+
         KerasModel::DataBlock2D dataBlock2D;
         this->HistogramToDataBlock(twoDHistogram, dataBlock2D);
         Data1D outputData1D;
@@ -152,10 +129,7 @@ StatusCode CaloHitEventDumpAlgorithm::Run()
             for (unsigned int counter = 0; counter < outputData1D.GetSizeI(); counter++)
                 std::cout << "Class " << counter << ", outcome " << outputData1D.Get(counter) << std::endl;
         }
-    return STATUS_CODE_SUCCESS;
-std::cout << targetParticleId << std::endl;
 
-/*
         int isShowerDeepLearning(0);
         int isShowerTruth(0);
         const float x(pTargetCaloHit->GetPositionVector().GetX());
@@ -190,9 +164,8 @@ std::cout << targetParticleId << std::endl;
         PANDORA_MONITORING_API(SetTreeVariable(this->GetPandora(), m_treeName.c_str(), "y", y));
         PANDORA_MONITORING_API(SetTreeVariable(this->GetPandora(), m_treeName.c_str(), "z", z));
         PANDORA_MONITORING_API(FillTree(this->GetPandora(), m_treeName.c_str()));
-*/
     }
-/*
+
     PANDORA_MONITORING_API(SetEveDisplayParameters(this->GetPandora(), true, DETECTOR_VIEW_XZ, -1.f, 1.f, 1.f));
     PANDORA_MONITORING_API(VisualizeCaloHits(this->GetPandora(), &wCaloHitList, "WCaloHits_All", BLACK));
     PANDORA_MONITORING_API(VisualizeCaloHits(this->GetPandora(), &caloHitListTruthShower, "WCaloHits_TrueShower", BLUE));
@@ -200,7 +173,7 @@ std::cout << targetParticleId << std::endl;
     PANDORA_MONITORING_API(VisualizeCaloHits(this->GetPandora(), &caloHitListDeepShower, "WCaloHits_DeepLearningShower", BLUE));
     PANDORA_MONITORING_API(VisualizeCaloHits(this->GetPandora(), &caloHitListDeepTrack, "WCaloHits_DeepLearningTrack", RED));
     PANDORA_MONITORING_API(ViewEvent(this->GetPandora()));
-*/
+
     return STATUS_CODE_SUCCESS;
 }
 
