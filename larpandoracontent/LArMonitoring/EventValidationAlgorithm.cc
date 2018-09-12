@@ -35,7 +35,10 @@ EventValidationAlgorithm::EventValidationAlgorithm() :
     m_matchingMinCompleteness(0.1f),
     m_matchingMinPurity(0.5f),
     m_fileIdentifier(0),
-    m_eventNumber(0)
+    m_eventNumber(0),
+    m_gridSize(16),
+    m_gridDimensions(50),
+    m_verbose(false)
 {
 }
 
@@ -71,17 +74,46 @@ StatusCode EventValidationAlgorithm::Run()
     const PfoList *pPfoList = nullptr;
     (void) PandoraContentApi::GetList(*this, m_pfoListName, pPfoList);
 
+    PfoList allConnectedPfos;
+    LArPfoHelper::GetAllConnectedPfos(*pPfoList, allConnectedPfos);
+
+    for (const Pfo *pPfo : allConnectedPfos)
+    {
+        CaloHitList caloHitList;
+        LArPfoHelper::GetCaloHits(pPfo, TPC_VIEW_U, caloHitList);
+        LArPfoHelper::GetCaloHits(pPfo, TPC_VIEW_V, caloHitList);
+        LArPfoHelper::GetCaloHits(pPfo, TPC_VIEW_W, caloHitList);
+        LArPfoHelper::GetIsolatedCaloHits(pPfo, TPC_VIEW_U, caloHitList);
+        LArPfoHelper::GetIsolatedCaloHits(pPfo, TPC_VIEW_V, caloHitList);
+        LArPfoHelper::GetIsolatedCaloHits(pPfo, TPC_VIEW_W, caloHitList);
+
+        const int id(pPfo->GetParticleId());
+        int label(std::numeric_limits<int>::max());
+
+        if (id == 22 || std::abs(id) == 11)
+        {
+            label = 0;
+        }
+        else
+        {
+            label = 1;
+        }
+
+        for (const CaloHit *pCaloHit : caloHitList)
+            m_hitToIntMap.insert(HitToIntMap::value_type(pCaloHit, label));
+    }
+
     ValidationInfo validationInfo;
     this->FillValidationInfo(pMCParticleList, pCaloHitList, pPfoList, validationInfo);
 
     if (m_printAllToScreen)
-        this->PrintAllMatches(validationInfo);
+        this->PrintAllMatches(validationInfo, pCaloHitList);
 
     if (m_printMatchingToScreen)
-        this->PrintInterpretedMatches(validationInfo);
+        this->PrintInterpretedMatches(validationInfo, pCaloHitList);
 
     if (m_writeToTree)
-        this->WriteInterpretedMatches(validationInfo);
+        this->WriteInterpretedMatches(validationInfo, pCaloHitList);
 
     return STATUS_CODE_SUCCESS;
 }
@@ -144,7 +176,7 @@ void EventValidationAlgorithm::FillValidationInfo(const MCParticleList *const pM
 
 //------------------------------------------------------------------------------------------------------------------------------------------
 
-void EventValidationAlgorithm::ProcessOutput(const ValidationInfo &validationInfo, const bool useInterpretedMatching, const bool printToScreen, const bool fillTree) const
+void EventValidationAlgorithm::ProcessOutput(const ValidationInfo &validationInfo, const CaloHitList *const pCaloHitList, const bool useInterpretedMatching, const bool printToScreen, const bool fillTree) const
 {
     if (printToScreen && useInterpretedMatching) std::cout << "---INTERPRETED-MATCHING-OUTPUT------------------------------------------------------------------" << std::endl;
     else if (printToScreen) std::cout << "---RAW-MATCHING-OUTPUT--------------------------------------------------------------------------" << std::endl;
@@ -178,12 +210,15 @@ void EventValidationAlgorithm::ProcessOutput(const ValidationInfo &validationInf
 
     int nCorrectNu(0), nTotalNu(0), nCorrectTB(0), nTotalTB(0), nCorrectCR(0), nTotalCR(0), nFakeNu(0), nFakeCR(0), nSplitNu(0), nSplitCR(0), nLost(0);
     int mcPrimaryIndex(0), nTargetMatches(0), nTargetNuMatches(0), nTargetCRMatches(0), nTargetGoodNuMatches(0), nTargetNuSplits(0), nTargetNuLosses(0);
-    IntVector mcPrimaryId, mcPrimaryPdg, nMCHitsTotal, nMCHitsU, nMCHitsV, nMCHitsW;
+    IntVector mcPrimaryId, mcPrimaryPdg, nMCHitsTotal, nMCHitsU, nMCHitsV, nMCHitsW, nMCTrkHitsU, nMCTrkHitsV, nMCTrkHitsW, nMCShwHitsU, nMCShwHitsV, nMCShwHitsW;
     FloatVector mcPrimaryE, mcPrimaryPX, mcPrimaryPY, mcPrimaryPZ;
     FloatVector mcPrimaryVtxX, mcPrimaryVtxY, mcPrimaryVtxZ, mcPrimaryEndX, mcPrimaryEndY, mcPrimaryEndZ;
     IntVector nPrimaryMatchedPfos, nPrimaryMatchedNuPfos, nPrimaryMatchedCRPfos;
     IntVector bestMatchPfoId, bestMatchPfoPdg, bestMatchPfoIsRecoNu, bestMatchPfoRecoNuId, bestMatchPfoIsTestBeam;
     IntVector bestMatchPfoNHitsTotal, bestMatchPfoNHitsU, bestMatchPfoNHitsV, bestMatchPfoNHitsW;
+    IntVector bestMatchPfoTrueTrkNHitsU, bestMatchPfoTrueTrkNHitsV, bestMatchPfoTrueTrkNHitsW, bestMatchPfoTrueShwNHitsU, bestMatchPfoTrueShwNHitsV, bestMatchPfoTrueShwNHitsW;
+    IntVector bestMatchPfoCNNTrkNHitsU, bestMatchPfoCNNTrkNHitsV, bestMatchPfoCNNTrkNHitsW, bestMatchPfoPandoraTrkNHitsU, bestMatchPfoPandoraTrkNHitsV, bestMatchPfoPandoraTrkNHitsW;
+    IntVector bestMatchPfoCNNShwNHitsU, bestMatchPfoCNNShwNHitsV, bestMatchPfoCNNShwNHitsW, bestMatchPfoPandoraShwNHitsU, bestMatchPfoPandoraShwNHitsV, bestMatchPfoPandoraShwNHitsW;
     IntVector bestMatchPfoNSharedHitsTotal, bestMatchPfoNSharedHitsU, bestMatchPfoNSharedHitsV, bestMatchPfoNSharedHitsW;
 
     std::stringstream targetSS;
@@ -239,6 +274,18 @@ void EventValidationAlgorithm::ProcessOutput(const ValidationInfo &validationInf
         nMCHitsV.push_back(LArMonitoringHelper::CountHitsByType(TPC_VIEW_V, mcPrimaryHitList));
         nMCHitsW.push_back(LArMonitoringHelper::CountHitsByType(TPC_VIEW_W, mcPrimaryHitList));
 
+        int nTrkU(0), nTrkV(0), nTrkW(0), nShwU(0), nShwV(0), nShwW(0);
+        this->CountTrkShwHitsByType(TPC_VIEW_U, mcPrimaryHitList, nTrkU, nShwU);
+        this->CountTrkShwHitsByType(TPC_VIEW_V, mcPrimaryHitList, nTrkV, nShwV);
+        this->CountTrkShwHitsByType(TPC_VIEW_W, mcPrimaryHitList, nTrkW, nShwW);
+
+        nMCTrkHitsU.push_back(nTrkU);
+        nMCTrkHitsV.push_back(nTrkV);
+        nMCTrkHitsW.push_back(nTrkW);
+        nMCShwHitsU.push_back(nShwU);
+        nMCShwHitsV.push_back(nShwV);
+        nMCShwHitsW.push_back(nShwW);
+
         int matchIndex(0), nPrimaryMatches(0), nPrimaryNuMatches(0), nPrimaryCRMatches(0), nPrimaryGoodNuMatches(0), nPrimaryNuSplits(0);
 #ifdef MONITORING
         float recoVertexX(std::numeric_limits<float>::max()), recoVertexY(std::numeric_limits<float>::max()), recoVertexZ(std::numeric_limits<float>::max());
@@ -255,6 +302,21 @@ void EventValidationAlgorithm::ProcessOutput(const ValidationInfo &validationInf
             const int pfoId(pfoToIdMap.at(pfoToSharedHits.first));
             const int recoNuId(isRecoNeutrinoFinalState ? neutrinoPfoToIdMap.at(LArPfoHelper::GetParentNeutrino(pfoToSharedHits.first)) : -1);
 
+            int nTrueTrkU(0), nTrueTrkV(0), nTrueTrkW(0), nTrueShwU(0), nTrueShwV(0), nTrueShwW(0);
+            this->CountTrkShwHitsByType(TPC_VIEW_U, pfoHitList, nTrueTrkU, nTrueShwU);
+            this->CountTrkShwHitsByType(TPC_VIEW_V, pfoHitList, nTrueTrkV, nTrueShwV);
+            this->CountTrkShwHitsByType(TPC_VIEW_W, pfoHitList, nTrueTrkW, nTrueShwW);
+
+            int nCNNTrkU(0), nCNNTrkV(0), nCNNTrkW(0), nCNNShwU(0), nCNNShwV(0), nCNNShwW(0);
+            this->CountCNNTrkShwHitsByType(TPC_VIEW_U, pfoHitList, *pCaloHitList, nCNNTrkU, nCNNShwU);
+            this->CountCNNTrkShwHitsByType(TPC_VIEW_V, pfoHitList, *pCaloHitList, nCNNTrkV, nCNNShwV);
+            this->CountCNNTrkShwHitsByType(TPC_VIEW_W, pfoHitList, *pCaloHitList, nCNNTrkW, nCNNShwW);
+
+            int nPandoraTrkU(0), nPandoraTrkV(0), nPandoraTrkW(0), nPandoraShwU(0), nPandoraShwV(0), nPandoraShwW(0);
+            this->CountPandoraTrkShwHitsByType(TPC_VIEW_U, pfoHitList, nPandoraTrkU, nPandoraShwU);
+            this->CountPandoraTrkShwHitsByType(TPC_VIEW_V, pfoHitList, nPandoraTrkV, nPandoraShwV);
+            this->CountPandoraTrkShwHitsByType(TPC_VIEW_W, pfoHitList, nPandoraTrkW, nPandoraShwW);
+
             if (0 == matchIndex++)
             {
                 bestMatchPfoId.push_back(pfoId);
@@ -266,6 +328,24 @@ void EventValidationAlgorithm::ProcessOutput(const ValidationInfo &validationInf
                 bestMatchPfoNHitsU.push_back(LArMonitoringHelper::CountHitsByType(TPC_VIEW_U, pfoHitList));
                 bestMatchPfoNHitsV.push_back(LArMonitoringHelper::CountHitsByType(TPC_VIEW_V, pfoHitList));
                 bestMatchPfoNHitsW.push_back(LArMonitoringHelper::CountHitsByType(TPC_VIEW_W, pfoHitList));
+                bestMatchPfoTrueTrkNHitsU.push_back(nTrueTrkU);
+                bestMatchPfoTrueShwNHitsU.push_back(nTrueShwU);
+                bestMatchPfoTrueTrkNHitsV.push_back(nTrueTrkV);
+                bestMatchPfoTrueShwNHitsV.push_back(nTrueShwV);
+                bestMatchPfoTrueTrkNHitsW.push_back(nTrueTrkW);
+                bestMatchPfoTrueShwNHitsW.push_back(nTrueShwW);
+                bestMatchPfoCNNTrkNHitsU.push_back(nCNNTrkU);
+                bestMatchPfoCNNShwNHitsU.push_back(nCNNShwU);
+                bestMatchPfoCNNTrkNHitsV.push_back(nCNNTrkV);
+                bestMatchPfoCNNShwNHitsV.push_back(nCNNShwV);
+                bestMatchPfoCNNTrkNHitsW.push_back(nCNNTrkW);
+                bestMatchPfoCNNShwNHitsW.push_back(nCNNShwW);
+                bestMatchPfoPandoraTrkNHitsU.push_back(nPandoraTrkU);
+                bestMatchPfoPandoraShwNHitsU.push_back(nPandoraShwU);
+                bestMatchPfoPandoraTrkNHitsV.push_back(nPandoraTrkV);
+                bestMatchPfoPandoraShwNHitsV.push_back(nPandoraShwV);
+                bestMatchPfoPandoraTrkNHitsW.push_back(nPandoraTrkW);
+                bestMatchPfoPandoraShwNHitsW.push_back(nPandoraShwW);
                 bestMatchPfoNSharedHitsTotal.push_back(sharedHitList.size());
                 bestMatchPfoNSharedHitsU.push_back(LArMonitoringHelper::CountHitsByType(TPC_VIEW_U, sharedHitList));
                 bestMatchPfoNSharedHitsV.push_back(LArMonitoringHelper::CountHitsByType(TPC_VIEW_V, sharedHitList));
@@ -327,6 +407,24 @@ void EventValidationAlgorithm::ProcessOutput(const ValidationInfo &validationInf
             targetSS << "-No matched Pfo" << std::endl;
             bestMatchPfoId.push_back(-1); bestMatchPfoPdg.push_back(0); bestMatchPfoIsRecoNu.push_back(0); bestMatchPfoRecoNuId.push_back(-1); bestMatchPfoIsTestBeam.push_back(0);
             bestMatchPfoNHitsTotal.push_back(0); bestMatchPfoNHitsU.push_back(0); bestMatchPfoNHitsV.push_back(0); bestMatchPfoNHitsW.push_back(0);
+            bestMatchPfoTrueTrkNHitsU.push_back(0);
+            bestMatchPfoTrueShwNHitsU.push_back(0);
+            bestMatchPfoTrueTrkNHitsV.push_back(0);
+            bestMatchPfoTrueShwNHitsV.push_back(0);
+            bestMatchPfoTrueTrkNHitsW.push_back(0);
+            bestMatchPfoTrueShwNHitsW.push_back(0);
+            bestMatchPfoCNNTrkNHitsU.push_back(0);
+            bestMatchPfoCNNShwNHitsU.push_back(0);
+            bestMatchPfoCNNTrkNHitsV.push_back(0);
+            bestMatchPfoCNNShwNHitsV.push_back(0);
+            bestMatchPfoCNNTrkNHitsW.push_back(0);
+            bestMatchPfoCNNShwNHitsW.push_back(0);
+            bestMatchPfoPandoraTrkNHitsU.push_back(0);
+            bestMatchPfoPandoraShwNHitsU.push_back(0);
+            bestMatchPfoPandoraTrkNHitsV.push_back(0);
+            bestMatchPfoPandoraShwNHitsV.push_back(0);
+            bestMatchPfoPandoraTrkNHitsW.push_back(0);
+            bestMatchPfoPandoraShwNHitsW.push_back(0);
             bestMatchPfoNSharedHitsTotal.push_back(0); bestMatchPfoNSharedHitsU.push_back(0); bestMatchPfoNSharedHitsV.push_back(0); bestMatchPfoNSharedHitsW.push_back(0);
         }
 
@@ -369,8 +467,14 @@ void EventValidationAlgorithm::ProcessOutput(const ValidationInfo &validationInf
             PANDORA_MONITORING_API(SetTreeVariable(this->GetPandora(), m_treeName.c_str(), "mcPrimaryEndZ", &mcPrimaryEndZ));
             PANDORA_MONITORING_API(SetTreeVariable(this->GetPandora(), m_treeName.c_str(), "mcPrimaryNHitsTotal", &nMCHitsTotal));
             PANDORA_MONITORING_API(SetTreeVariable(this->GetPandora(), m_treeName.c_str(), "mcPrimaryNHitsU", &nMCHitsU));
+            PANDORA_MONITORING_API(SetTreeVariable(this->GetPandora(), m_treeName.c_str(), "mcPrimaryNTrkHitsU", &nMCTrkHitsU));
+            PANDORA_MONITORING_API(SetTreeVariable(this->GetPandora(), m_treeName.c_str(), "mcPrimaryNShwHitsU", &nMCShwHitsU));
             PANDORA_MONITORING_API(SetTreeVariable(this->GetPandora(), m_treeName.c_str(), "mcPrimaryNHitsV", &nMCHitsV));
+            PANDORA_MONITORING_API(SetTreeVariable(this->GetPandora(), m_treeName.c_str(), "mcPrimaryNTrkHitsV", &nMCTrkHitsV));
+            PANDORA_MONITORING_API(SetTreeVariable(this->GetPandora(), m_treeName.c_str(), "mcPrimaryNShwHitsV", &nMCShwHitsV));
             PANDORA_MONITORING_API(SetTreeVariable(this->GetPandora(), m_treeName.c_str(), "mcPrimaryNHitsW", &nMCHitsW));
+            PANDORA_MONITORING_API(SetTreeVariable(this->GetPandora(), m_treeName.c_str(), "mcPrimaryNTrkHitsW", &nMCTrkHitsW));
+            PANDORA_MONITORING_API(SetTreeVariable(this->GetPandora(), m_treeName.c_str(), "mcPrimaryNShwHitsW", &nMCShwHitsW));
             PANDORA_MONITORING_API(SetTreeVariable(this->GetPandora(), m_treeName.c_str(), "nPrimaryMatchedPfos", &nPrimaryMatchedPfos));
             PANDORA_MONITORING_API(SetTreeVariable(this->GetPandora(), m_treeName.c_str(), "nPrimaryMatchedNuPfos", &nPrimaryMatchedNuPfos));
             PANDORA_MONITORING_API(SetTreeVariable(this->GetPandora(), m_treeName.c_str(), "nPrimaryMatchedCRPfos", &nPrimaryMatchedCRPfos));
@@ -380,8 +484,26 @@ void EventValidationAlgorithm::ProcessOutput(const ValidationInfo &validationInf
             PANDORA_MONITORING_API(SetTreeVariable(this->GetPandora(), m_treeName.c_str(), "bestMatchPfoRecoNuId", &bestMatchPfoRecoNuId));
             PANDORA_MONITORING_API(SetTreeVariable(this->GetPandora(), m_treeName.c_str(), "bestMatchPfoNHitsTotal", &bestMatchPfoNHitsTotal));
             PANDORA_MONITORING_API(SetTreeVariable(this->GetPandora(), m_treeName.c_str(), "bestMatchPfoNHitsU", &bestMatchPfoNHitsU));
+            PANDORA_MONITORING_API(SetTreeVariable(this->GetPandora(), m_treeName.c_str(), "bestMatchPfoTrueTrkNHitsU", &bestMatchPfoTrueTrkNHitsU));
+            PANDORA_MONITORING_API(SetTreeVariable(this->GetPandora(), m_treeName.c_str(), "bestMatchPfoTrueShwNHitsU", &bestMatchPfoTrueShwNHitsU));
+            PANDORA_MONITORING_API(SetTreeVariable(this->GetPandora(), m_treeName.c_str(), "bestMatchPfoCNNTrkNHitsU", &bestMatchPfoCNNTrkNHitsU));
+            PANDORA_MONITORING_API(SetTreeVariable(this->GetPandora(), m_treeName.c_str(), "bestMatchPfoCNNShwNHitsU", &bestMatchPfoCNNShwNHitsU));
+            PANDORA_MONITORING_API(SetTreeVariable(this->GetPandora(), m_treeName.c_str(), "bestMatchPfoPandoraTrkNHitsU", &bestMatchPfoPandoraTrkNHitsU));
+            PANDORA_MONITORING_API(SetTreeVariable(this->GetPandora(), m_treeName.c_str(), "bestMatchPfoPandoraShwNHitsU", &bestMatchPfoPandoraShwNHitsU));
             PANDORA_MONITORING_API(SetTreeVariable(this->GetPandora(), m_treeName.c_str(), "bestMatchPfoNHitsV", &bestMatchPfoNHitsV));
+            PANDORA_MONITORING_API(SetTreeVariable(this->GetPandora(), m_treeName.c_str(), "bestMatchPfoTrueTrkNHitsV", &bestMatchPfoTrueTrkNHitsV));
+            PANDORA_MONITORING_API(SetTreeVariable(this->GetPandora(), m_treeName.c_str(), "bestMatchPfoTrueShwNHitsV", &bestMatchPfoTrueShwNHitsV));
+            PANDORA_MONITORING_API(SetTreeVariable(this->GetPandora(), m_treeName.c_str(), "bestMatchPfoCNNTrkNHitsV", &bestMatchPfoCNNTrkNHitsV));
+            PANDORA_MONITORING_API(SetTreeVariable(this->GetPandora(), m_treeName.c_str(), "bestMatchPfoCNNShwNHitsV", &bestMatchPfoCNNShwNHitsV));
+            PANDORA_MONITORING_API(SetTreeVariable(this->GetPandora(), m_treeName.c_str(), "bestMatchPfoPandoraTrkNHitsV", &bestMatchPfoPandoraTrkNHitsV));
+            PANDORA_MONITORING_API(SetTreeVariable(this->GetPandora(), m_treeName.c_str(), "bestMatchPfoPandoraShwNHitsV", &bestMatchPfoPandoraShwNHitsV));
             PANDORA_MONITORING_API(SetTreeVariable(this->GetPandora(), m_treeName.c_str(), "bestMatchPfoNHitsW", &bestMatchPfoNHitsW));
+            PANDORA_MONITORING_API(SetTreeVariable(this->GetPandora(), m_treeName.c_str(), "bestMatchPfoTrueTrkNHitsW", &bestMatchPfoTrueTrkNHitsW));
+            PANDORA_MONITORING_API(SetTreeVariable(this->GetPandora(), m_treeName.c_str(), "bestMatchPfoTrueShwNHitsW", &bestMatchPfoTrueShwNHitsW));
+            PANDORA_MONITORING_API(SetTreeVariable(this->GetPandora(), m_treeName.c_str(), "bestMatchPfoCNNTrkNHitsW", &bestMatchPfoCNNTrkNHitsW));
+            PANDORA_MONITORING_API(SetTreeVariable(this->GetPandora(), m_treeName.c_str(), "bestMatchPfoCNNShwNHitsW", &bestMatchPfoCNNShwNHitsW));
+            PANDORA_MONITORING_API(SetTreeVariable(this->GetPandora(), m_treeName.c_str(), "bestMatchPfoPandoraTrkNHitsW", &bestMatchPfoPandoraTrkNHitsW));
+            PANDORA_MONITORING_API(SetTreeVariable(this->GetPandora(), m_treeName.c_str(), "bestMatchPfoPandoraShwNHitsW", &bestMatchPfoPandoraShwNHitsW));
             PANDORA_MONITORING_API(SetTreeVariable(this->GetPandora(), m_treeName.c_str(), "bestMatchPfoNSharedHitsTotal", &bestMatchPfoNSharedHitsTotal));
             PANDORA_MONITORING_API(SetTreeVariable(this->GetPandora(), m_treeName.c_str(), "bestMatchPfoNSharedHitsU", &bestMatchPfoNSharedHitsU));
             PANDORA_MONITORING_API(SetTreeVariable(this->GetPandora(), m_treeName.c_str(), "bestMatchPfoNSharedHitsV", &bestMatchPfoNSharedHitsV));
@@ -468,12 +590,30 @@ void EventValidationAlgorithm::ProcessOutput(const ValidationInfo &validationInf
             targetSS.str(std::string()); targetSS.clear();
             recoNeutrinos.clear(); associatedMCPrimaries.clear();
             nTargetMatches = 0; nTargetNuMatches = 0; nTargetCRMatches = 0; nTargetGoodNuMatches = 0; nTargetNuSplits = 0; nTargetNuLosses = 0;
-            mcPrimaryId.clear(); mcPrimaryPdg.clear(); nMCHitsTotal.clear(); nMCHitsU.clear(); nMCHitsV.clear(); nMCHitsW.clear();
+            mcPrimaryId.clear(); mcPrimaryPdg.clear(); nMCHitsTotal.clear(); nMCHitsU.clear(); nMCHitsV.clear(); nMCHitsW.clear(); nMCTrkHitsU.clear(); nMCTrkHitsV.clear(); nMCTrkHitsW.clear(); nMCShwHitsU.clear(); nMCShwHitsV.clear(); nMCShwHitsW.clear();
             mcPrimaryE.clear(); mcPrimaryPX.clear(); mcPrimaryPY.clear(); mcPrimaryPZ.clear();
             mcPrimaryVtxX.clear(); mcPrimaryVtxY.clear(); mcPrimaryVtxZ.clear(); mcPrimaryEndX.clear(); mcPrimaryEndY.clear(); mcPrimaryEndZ.clear();
             nPrimaryMatchedPfos.clear(); nPrimaryMatchedNuPfos.clear(); nPrimaryMatchedCRPfos.clear();
             bestMatchPfoId.clear(); bestMatchPfoPdg.clear(); bestMatchPfoIsRecoNu.clear(); bestMatchPfoRecoNuId.clear(); bestMatchPfoIsTestBeam.clear();
             bestMatchPfoNHitsTotal.clear(); bestMatchPfoNHitsU.clear(); bestMatchPfoNHitsV.clear(); bestMatchPfoNHitsW.clear();
+            bestMatchPfoTrueTrkNHitsU.clear();
+            bestMatchPfoTrueShwNHitsU.clear();
+            bestMatchPfoTrueTrkNHitsV.clear();
+            bestMatchPfoTrueShwNHitsV.clear();
+            bestMatchPfoTrueTrkNHitsW.clear();
+            bestMatchPfoTrueShwNHitsW.clear();
+            bestMatchPfoCNNTrkNHitsU.clear();
+            bestMatchPfoCNNShwNHitsU.clear();
+            bestMatchPfoPandoraTrkNHitsU.clear();
+            bestMatchPfoPandoraShwNHitsU.clear();
+            bestMatchPfoCNNTrkNHitsV.clear();
+            bestMatchPfoCNNShwNHitsV.clear();
+            bestMatchPfoPandoraTrkNHitsV.clear();
+            bestMatchPfoPandoraShwNHitsV.clear();
+            bestMatchPfoCNNTrkNHitsW.clear();
+            bestMatchPfoCNNShwNHitsW.clear();
+            bestMatchPfoPandoraTrkNHitsW.clear();
+            bestMatchPfoPandoraShwNHitsW.clear();
             bestMatchPfoNSharedHitsTotal.clear(); bestMatchPfoNSharedHitsU.clear(); bestMatchPfoNSharedHitsV.clear(); bestMatchPfoNSharedHitsW.clear();
         }
     }
@@ -495,6 +635,120 @@ void EventValidationAlgorithm::ProcessOutput(const ValidationInfo &validationInf
     }
 
     if (printToScreen) std::cout << "------------------------------------------------------------------------------------------------" << std::endl << std::endl;
+}
+
+//------------------------------------------------------------------------------------------------------------------------------------------
+
+void EventValidationAlgorithm::CountTrkShwHitsByType(const HitType hitType, const CaloHitList &caloHitList, int &nTrack, int &nShower) const
+{
+    for (const CaloHit *const pCaloHit : caloHitList)
+    {
+        if (hitType == pCaloHit->GetHitType())
+        {
+            try
+            {
+                const MCParticle *const pMCParticle(MCParticleHelper::GetMainMCParticle(pCaloHit));
+                if (pMCParticle->GetParticleId() == 22 || std::abs(pMCParticle->GetParticleId()) == 11)
+                {
+                    nShower++;
+                }
+                else
+                {
+                    nTrack++;
+                }
+            }
+            catch (...) {}
+        }
+    }
+}
+
+//------------------------------------------------------------------------------------------------------------------------------------------
+
+void EventValidationAlgorithm::CountCNNTrkShwHitsByType(const HitType hitType, const CaloHitList &targetCaloHitList, const CaloHitList &allCaloHitList, int &nTrack, int &nShower) const
+{
+    for (const CaloHit *pTargetCaloHit : targetCaloHitList)
+    {
+        if (hitType != pTargetCaloHit->GetHitType())
+            continue;
+
+        TwoDHistogram twoDHistogram(m_gridSize, -1.f * m_gridDimensions/2.f,  m_gridDimensions/2.f, m_gridSize, -1.f * m_gridDimensions/2.f,  m_gridDimensions/2.f);
+
+        for (const CaloHit *pNeighbourCaloHit : allCaloHitList)
+        {
+            if (hitType != pNeighbourCaloHit->GetHitType())
+                continue;
+
+            CartesianVector relativePosition(pNeighbourCaloHit->GetPositionVector() - pTargetCaloHit->GetPositionVector());
+            twoDHistogram.Fill(relativePosition.GetX(), relativePosition.GetZ(), pNeighbourCaloHit->GetInputEnergy());
+        }
+
+        KerasModel::DataBlock2D dataBlock2D;
+        this->HistogramToDataBlock(twoDHistogram, dataBlock2D);
+        Data1D outputData1D;
+        m_kerasModel.CalculateOutput(&dataBlock2D, outputData1D, this);
+
+        if (m_verbose)
+        {
+            for (unsigned int counter = 0; counter < outputData1D.GetSizeI(); counter++)
+                std::cout << "Class " << counter << ", outcome " << outputData1D.Get(counter) << std::endl;
+        }
+
+        if (outputData1D.Get(0) > outputData1D.Get(1))
+        {
+            nShower++;
+        }
+        else
+        {
+            nTrack++;
+        }
+    }
+}
+
+//------------------------------------------------------------------------------------------------------------------------------------------
+
+void EventValidationAlgorithm::HistogramToDataBlock(const TwoDHistogram &twoDHistogram, KerasModel::DataBlock2D &dataBlock2D) const
+{
+    Data3D data3D;
+    Data2D data2D;
+    for (int yBin = 0; yBin < twoDHistogram.GetNBinsY(); yBin++)
+    {
+        Data1D data1D;
+        for (int xBin = 0; xBin < twoDHistogram.GetNBinsX(); xBin++)
+        {
+            data1D.Append(twoDHistogram.GetBinContent(xBin, yBin) * 256.f / 10000.f );
+        }
+        data2D.Append(data1D);
+    }
+    data3D.Append(data2D);
+    dataBlock2D.SetData(data3D);
+    return;
+}
+
+//------------------------------------------------------------------------------------------------------------------------------------------
+
+void EventValidationAlgorithm::CountPandoraTrkShwHitsByType(const HitType hitType, const CaloHitList &caloHitList, int &nTrack, int &nShower) const
+{
+    for (const CaloHit *pCaloHit : caloHitList)
+    {
+        if (hitType != pCaloHit->GetHitType())
+            continue;
+
+        if (m_hitToIntMap.find(pCaloHit) != m_hitToIntMap.end())
+        {
+            if (m_hitToIntMap.at(pCaloHit) == 0)
+            {
+                nShower++;
+            }
+            else if (m_hitToIntMap.at(pCaloHit) == 1)
+            {
+                nTrack++;
+            }
+        }
+        else
+        {
+            std::cout << "Hit missing from map" << std::endl;
+        }
+    }
 }
 
 //------------------------------------------------------------------------------------------------------------------------------------------
@@ -624,6 +878,18 @@ StatusCode EventValidationAlgorithm::ReadSettings(const TiXmlHandle xmlHandle)
     PANDORA_RETURN_RESULT_IF(STATUS_CODE_SUCCESS, !=, XmlHelper::ReadValue(xmlHandle, "CaloHitListName", m_caloHitListName));
     PANDORA_RETURN_RESULT_IF(STATUS_CODE_SUCCESS, !=, XmlHelper::ReadValue(xmlHandle, "MCParticleListName", m_mcParticleListName));
     PANDORA_RETURN_RESULT_IF(STATUS_CODE_SUCCESS, !=, XmlHelper::ReadValue(xmlHandle, "PfoListName", m_pfoListName));
+
+    PANDORA_RETURN_RESULT_IF_AND_IF(STATUS_CODE_SUCCESS, STATUS_CODE_NOT_FOUND, !=, XmlHelper::ReadValue(xmlHandle, "GridSize", m_gridSize));
+
+    PANDORA_RETURN_RESULT_IF_AND_IF(STATUS_CODE_SUCCESS, STATUS_CODE_NOT_FOUND, !=, XmlHelper::ReadValue(xmlHandle, "GridDimensions", m_gridDimensions));
+
+    PANDORA_RETURN_RESULT_IF_AND_IF(STATUS_CODE_SUCCESS, STATUS_CODE_NOT_FOUND, !=, XmlHelper::ReadValue(xmlHandle, "Verbose", m_verbose));
+
+    PANDORA_RETURN_RESULT_IF_AND_IF(STATUS_CODE_SUCCESS, STATUS_CODE_NOT_FOUND, !=, XmlHelper::ReadValue(xmlHandle, "CNNModelName", m_cnnModelName));
+
+    PANDORA_RETURN_RESULT_IF_AND_IF(STATUS_CODE_SUCCESS, STATUS_CODE_NOT_FOUND, !=, XmlHelper::ReadValue(xmlHandle, "CNNModelXml", m_cnnModelXml));
+
+    m_kerasModel.Initialize(m_cnnModelXml, m_cnnModelName);
 
     PANDORA_RETURN_RESULT_IF_AND_IF(STATUS_CODE_SUCCESS, STATUS_CODE_NOT_FOUND, !=, XmlHelper::ReadValue(xmlHandle,
         "UseTrueNeutrinosOnly", m_useTrueNeutrinosOnly));

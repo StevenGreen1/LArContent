@@ -10,6 +10,7 @@
 
 #include "Pandora/Algorithm.h"
 
+#include "larpandoracontent/LArDeepLearning/LArKerasModel.h"
 #include "larpandoracontent/LArHelpers/LArMCParticleHelper.h"
 
 #ifdef MONITORING
@@ -141,32 +142,75 @@ private:
      *  @brief  Print all/raw matching information to screen
      *
      *  @param  validationInfo the validation info
+     *  @param  pCaloHitList all calo hits
      */
-    void PrintAllMatches(const ValidationInfo &validationInfo) const;
+    void PrintAllMatches(const ValidationInfo &validationInfo, const pandora::CaloHitList *const pCaloHitList) const;
 
     /**
      *  @brief  Print interpreted matching information to screen
      *
      *  @param  validationInfo the validation info
+     *  @param  pCaloHitList all calo hits
      */
-    void PrintInterpretedMatches(const ValidationInfo &validationInfo) const;
+    void PrintInterpretedMatches(const ValidationInfo &validationInfo, const pandora::CaloHitList *const pCaloHitList) const;
 
     /**
      *  @brief  Write interpreted matching information to tree
      *
      *  @param  validationInfo the validation info
+     *  @param  pCaloHitList all calo hits
      */
-    void WriteInterpretedMatches(const ValidationInfo &validationInfo) const;
+    void WriteInterpretedMatches(const ValidationInfo &validationInfo, const pandora::CaloHitList *const pCaloHitList) const;
 
     /**
      *  @brief  Print matching information in a provided validation info object, and write information to tree if configured to do so
      *
      *  @param  validationInfo the validation info
+     *  @param  pCaloHitList all calo hits
      *  @param  useInterpretedMatching whether to use the interpreted (rather than raw) matching information
      *  @param  printToScreen whether to print the information to screen
      *  @param  fillTree whether to write the information to tree
      */
-    void ProcessOutput(const ValidationInfo &validationInfo, const bool useInterpretedMatching, const bool printToScreen, const bool fillTree) const;
+    void ProcessOutput(const ValidationInfo &validationInfo, const pandora::CaloHitList *const pCaloHitList, const bool useInterpretedMatching, const bool printToScreen, const bool fillTree) const;
+
+    /**
+     *  @brief  Count the number of track and shower like hits in a given calo hit list
+     *
+     *  @param  hitType target hit type
+     *  @param  caloHitList target calo hit list
+     *  @param  nTrack number of track hits
+     *  @param  nShower number of shower hits
+     */
+    void CountTrkShwHitsByType(const pandora::HitType hitType, const pandora::CaloHitList &caloHitList, int &nTrack, int &nShower) const;
+
+    /**
+     *  @brief  Count the number of track and shower like hits as tagged by cnn in a given calo hit list
+     *
+     *  @param  hitType target hit type
+     *  @param  targetCaloHitList target calo hit list
+     *  @param  allCaloHitList all calo hits
+     *  @param  nTrack number of track hits
+     *  @param  nShower number of shower hits
+     */
+    void CountCNNTrkShwHitsByType(const pandora::HitType hitType, const pandora::CaloHitList &targetCaloHitList, const pandora::CaloHitList &allCaloHitList, int &nTrack, int &nShower) const;
+
+    /**
+     *  @brief  Function to convert Pandora histogram to Keras data block
+     *
+     *  @param  twoDHistogram histogram to convert
+     *  @param  dataBlock2D data block to populate
+     */
+    void HistogramToDataBlock(const pandora::TwoDHistogram &twoDHistogram, KerasModel::DataBlock2D &dataBlock2D) const;
+
+    /**
+     *  @brief  Count the number of track and shower like hits as tagged by pandora in a given calo hit list
+     *
+     *  @param  hitType target hit type
+     *  @param  caloHitList target calo hit list
+     *  @param  nTrack number of track hits
+     *  @param  nShower number of shower hits
+     */
+    void CountPandoraTrkShwHitsByType(const pandora::HitType hitType, const pandora::CaloHitList &caloHitList, int &nTrack, int &nShower) const;
 
     /**
      *  @brief  Apply an interpretative matching procedure to the comprehensive matches in the provided validation info object
@@ -214,6 +258,7 @@ private:
     pandora::StatusCode ReadSettings(const pandora::TiXmlHandle xmlHandle);
 
     typedef std::vector<pandora::HitType> HitTypeVector;
+    typedef std::map<const pandora::CaloHit*, int> HitToIntMap;
 
     std::string             m_caloHitListName;              ///< Name of input calo hit list
     std::string             m_mcParticleListName;           ///< Name of input MC particle list
@@ -241,6 +286,15 @@ private:
 
     int                     m_fileIdentifier;               ///< The input file identifier
     int                     m_eventNumber;                  ///< The event number
+
+    KerasModel              m_kerasModel;                   ///< Trk shw cnn model
+    std::string             m_cnnModelXml;                  ///< CNN xml file
+    std::string             m_cnnModelName;                 ///< CNN model name
+    int                     m_gridSize;                     ///< CNN grid size
+    float                   m_gridDimensions;               ///< CNN grid dimensions
+    bool                    m_verbose;                      ///< Prinout results
+
+    HitToIntMap             m_hitToIntMap;                  ///< Map of hit to trk shw int
 };
 
 //------------------------------------------------------------------------------------------------------------------------------------------
@@ -317,23 +371,23 @@ inline void EventValidationAlgorithm::ValidationInfo::SetInterpretedMCToPfoHitSh
 //------------------------------------------------------------------------------------------------------------------------------------------
 //------------------------------------------------------------------------------------------------------------------------------------------
 
-inline void EventValidationAlgorithm::PrintAllMatches(const ValidationInfo &validationInfo) const
+inline void EventValidationAlgorithm::PrintAllMatches(const ValidationInfo &validationInfo, const pandora::CaloHitList *const pCaloHitList) const
 {
-    return this->ProcessOutput(validationInfo, false, true, false);
+    return this->ProcessOutput(validationInfo, pCaloHitList, false, true, false);
 }
 
 //------------------------------------------------------------------------------------------------------------------------------------------
 
-inline void EventValidationAlgorithm::PrintInterpretedMatches(const ValidationInfo &validationInfo) const
+inline void EventValidationAlgorithm::PrintInterpretedMatches(const ValidationInfo &validationInfo, const pandora::CaloHitList *const pCaloHitList) const
 {
-    return this->ProcessOutput(validationInfo, true, true, false);
+    return this->ProcessOutput(validationInfo, pCaloHitList, true, true, false);
 }
 
 //------------------------------------------------------------------------------------------------------------------------------------------
 
-inline void EventValidationAlgorithm::WriteInterpretedMatches(const ValidationInfo &validationInfo) const
+inline void EventValidationAlgorithm::WriteInterpretedMatches(const ValidationInfo &validationInfo, const pandora::CaloHitList *const pCaloHitList) const
 {
-    return this->ProcessOutput(validationInfo, true, false, true);
+    return this->ProcessOutput(validationInfo, pCaloHitList, true, false, true);
 }
 
 } // namespace lar_content

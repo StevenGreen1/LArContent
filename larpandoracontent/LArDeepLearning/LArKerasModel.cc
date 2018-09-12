@@ -804,7 +804,6 @@ KerasModel::DataBlock* KerasModel::LayerConv2D::CalculateOutput(const KerasModel
 
     KerasModel::DataBlock2D *pDataBlock2D = new KerasModel::DataBlock2D();
     pDataBlock2D->SetData(activeData3D);
-    pDataBlock2D->ShowValues();
     return pDataBlock2D;
 }
 
