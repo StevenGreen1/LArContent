@@ -202,6 +202,8 @@ void EventValidationAlgorithm::ProcessOutput(const ValidationInfo &validationInf
         const CaloHitList &mcPrimaryHitList(validationInfo.GetAllMCParticleToHitsMap().at(pMCPrimary));
 
         const int mcNuanceCode(LArMCParticleHelper::GetNuanceCode(LArMCParticleHelper::GetParentMCParticle(pMCPrimary)));
+        const LArMCParticle *const pLArMCParticle(dynamic_cast<const LArMCParticle*>(LArMCParticleHelper::GetParentMCParticle(pMCPrimary)));
+        const float mcT0(pLArMCParticle ? pLArMCParticle->GetT0() : std::numeric_limits<float>::max());
         const int isBeamNeutrinoFinalState(LArMCParticleHelper::IsBeamNeutrinoFinalState(pMCPrimary));
         const int isBeamParticle(LArMCParticleHelper::IsBeamParticle(pMCPrimary));
         const int isCosmicRay(LArMCParticleHelper::IsCosmicRay(pMCPrimary));
@@ -345,6 +347,7 @@ void EventValidationAlgorithm::ProcessOutput(const ValidationInfo &validationInf
             PANDORA_MONITORING_API(SetTreeVariable(this->GetPandora(), m_treeName.c_str(), "fileIdentifier", m_fileIdentifier));
             PANDORA_MONITORING_API(SetTreeVariable(this->GetPandora(), m_treeName.c_str(), "eventNumber", m_eventNumber - 1));
             PANDORA_MONITORING_API(SetTreeVariable(this->GetPandora(), m_treeName.c_str(), "mcNuanceCode", mcNuanceCode));
+            PANDORA_MONITORING_API(SetTreeVariable(this->GetPandora(), m_treeName.c_str(), "mcT0", mcT0));
             PANDORA_MONITORING_API(SetTreeVariable(this->GetPandora(), m_treeName.c_str(), "isNeutrino", isBeamNeutrinoFinalState));
             PANDORA_MONITORING_API(SetTreeVariable(this->GetPandora(), m_treeName.c_str(), "isBeamParticle", isBeamParticle));
             PANDORA_MONITORING_API(SetTreeVariable(this->GetPandora(), m_treeName.c_str(), "isCosmicRay", isCosmicRay));
