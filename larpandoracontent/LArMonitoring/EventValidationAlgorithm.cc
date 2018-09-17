@@ -182,6 +182,7 @@ void EventValidationAlgorithm::ProcessOutput(const ValidationInfo &validationInf
     FloatVector mcPrimaryE, mcPrimaryPX, mcPrimaryPY, mcPrimaryPZ;
     FloatVector mcPrimaryVtxX, mcPrimaryVtxY, mcPrimaryVtxZ, mcPrimaryEndX, mcPrimaryEndY, mcPrimaryEndZ;
     IntVector nPrimaryMatchedPfos, nPrimaryMatchedNuPfos, nPrimaryMatchedCRPfos;
+    FloatVector bestMatchPfoT0;
     IntVector bestMatchPfoId, bestMatchPfoPdg, bestMatchPfoIsRecoNu, bestMatchPfoRecoNuId, bestMatchPfoIsTestBeam;
     IntVector bestMatchPfoNHitsTotal, bestMatchPfoNHitsU, bestMatchPfoNHitsV, bestMatchPfoNHitsW;
     IntVector bestMatchPfoNSharedHitsTotal, bestMatchPfoNSharedHitsU, bestMatchPfoNSharedHitsV, bestMatchPfoNSharedHitsW;
@@ -257,9 +258,13 @@ void EventValidationAlgorithm::ProcessOutput(const ValidationInfo &validationInf
             const int pfoId(pfoToIdMap.at(pfoToSharedHits.first));
             const int recoNuId(isRecoNeutrinoFinalState ? neutrinoPfoToIdMap.at(LArPfoHelper::GetParentNeutrino(pfoToSharedHits.first)) : -1);
 
+            float pfoT0(std::numeric_limits<float>::max());
+            this->BuildT0(pfoToSharedHits.first, pfoT0);
+
             if (0 == matchIndex++)
             {
                 bestMatchPfoId.push_back(pfoId);
+                bestMatchPfoT0.push_back(pfoT0);
                 bestMatchPfoPdg.push_back(pfoToSharedHits.first->GetParticleId());
                 bestMatchPfoIsRecoNu.push_back(isRecoNeutrinoFinalState ? 1 : 0);
                 bestMatchPfoRecoNuId.push_back(recoNuId);
@@ -282,6 +287,18 @@ void EventValidationAlgorithm::ProcessOutput(const ValidationInfo &validationInf
                 }
                 catch (const StatusCodeException &) {}
 #endif
+/*
+                if (std::fabs(pfoT0) > 0.f)
+                {
+                    std::cout << "MC T0   : " << (mcT0/1000.f) - 250.f << std::endl;
+                    std::cout << "Reco T0 : " << (pfoT0/ 0.0802814f) * 0.5f << std::endl;
+                    PfoList *pPfoList = new PfoList();
+                    pPfoList->push_back(pfoToSharedHits.first);
+                    PANDORA_MONITORING_API(SetEveDisplayParameters(this->GetPandora(), true, DETECTOR_VIEW_XZ, -1.f, 1.f, 1.f));
+                    PANDORA_MONITORING_API(VisualizeParticleFlowObjects(this->GetPandora(), pPfoList, "TargetPfo", AUTO, true, true));
+                    PANDORA_MONITORING_API(ViewEvent(this->GetPandora()));
+                }
+*/
             }
 
             if (isGoodMatch) ++nPrimaryMatches;
@@ -327,7 +344,7 @@ void EventValidationAlgorithm::ProcessOutput(const ValidationInfo &validationInf
         if (mcToPfoHitSharingMap.at(pMCPrimary).empty())
         {
             targetSS << "-No matched Pfo" << std::endl;
-            bestMatchPfoId.push_back(-1); bestMatchPfoPdg.push_back(0); bestMatchPfoIsRecoNu.push_back(0); bestMatchPfoRecoNuId.push_back(-1); bestMatchPfoIsTestBeam.push_back(0);
+            bestMatchPfoId.push_back(-1); bestMatchPfoT0.push_back(0); bestMatchPfoPdg.push_back(0); bestMatchPfoIsRecoNu.push_back(0); bestMatchPfoRecoNuId.push_back(-1); bestMatchPfoIsTestBeam.push_back(0);
             bestMatchPfoNHitsTotal.push_back(0); bestMatchPfoNHitsU.push_back(0); bestMatchPfoNHitsV.push_back(0); bestMatchPfoNHitsW.push_back(0);
             bestMatchPfoNSharedHitsTotal.push_back(0); bestMatchPfoNSharedHitsU.push_back(0); bestMatchPfoNSharedHitsV.push_back(0); bestMatchPfoNSharedHitsW.push_back(0);
         }
@@ -377,6 +394,7 @@ void EventValidationAlgorithm::ProcessOutput(const ValidationInfo &validationInf
             PANDORA_MONITORING_API(SetTreeVariable(this->GetPandora(), m_treeName.c_str(), "nPrimaryMatchedPfos", &nPrimaryMatchedPfos));
             PANDORA_MONITORING_API(SetTreeVariable(this->GetPandora(), m_treeName.c_str(), "nPrimaryMatchedNuPfos", &nPrimaryMatchedNuPfos));
             PANDORA_MONITORING_API(SetTreeVariable(this->GetPandora(), m_treeName.c_str(), "nPrimaryMatchedCRPfos", &nPrimaryMatchedCRPfos));
+            PANDORA_MONITORING_API(SetTreeVariable(this->GetPandora(), m_treeName.c_str(), "bestMatchPfoT0", &bestMatchPfoT0));
             PANDORA_MONITORING_API(SetTreeVariable(this->GetPandora(), m_treeName.c_str(), "bestMatchPfoId", &bestMatchPfoId));
             PANDORA_MONITORING_API(SetTreeVariable(this->GetPandora(), m_treeName.c_str(), "bestMatchPfoPdg", &bestMatchPfoPdg));
             PANDORA_MONITORING_API(SetTreeVariable(this->GetPandora(), m_treeName.c_str(), "bestMatchPfoIsRecoNu", &bestMatchPfoIsRecoNu));
@@ -475,6 +493,7 @@ void EventValidationAlgorithm::ProcessOutput(const ValidationInfo &validationInf
             mcPrimaryE.clear(); mcPrimaryPX.clear(); mcPrimaryPY.clear(); mcPrimaryPZ.clear();
             mcPrimaryVtxX.clear(); mcPrimaryVtxY.clear(); mcPrimaryVtxZ.clear(); mcPrimaryEndX.clear(); mcPrimaryEndY.clear(); mcPrimaryEndZ.clear();
             nPrimaryMatchedPfos.clear(); nPrimaryMatchedNuPfos.clear(); nPrimaryMatchedCRPfos.clear();
+            bestMatchPfoT0.clear();
             bestMatchPfoId.clear(); bestMatchPfoPdg.clear(); bestMatchPfoIsRecoNu.clear(); bestMatchPfoRecoNuId.clear(); bestMatchPfoIsTestBeam.clear();
             bestMatchPfoNHitsTotal.clear(); bestMatchPfoNHitsU.clear(); bestMatchPfoNHitsV.clear(); bestMatchPfoNHitsW.clear();
             bestMatchPfoNSharedHitsTotal.clear(); bestMatchPfoNSharedHitsU.clear(); bestMatchPfoNSharedHitsV.clear(); bestMatchPfoNSharedHitsW.clear();
@@ -498,6 +517,30 @@ void EventValidationAlgorithm::ProcessOutput(const ValidationInfo &validationInf
     }
 
     if (printToScreen) std::cout << "------------------------------------------------------------------------------------------------" << std::endl << std::endl;
+}
+
+//------------------------------------------------------------------------------------------------------------------------------------------
+
+void EventValidationAlgorithm::BuildT0(const Pfo *pPfo, float &t0) const
+{
+    CaloHitList parentHitList3D;
+    LArPfoHelper::GetCaloHits(pPfo, TPC_3D, parentHitList3D);
+
+    if (parentHitList3D.empty())
+        return;
+
+    double sumT(0.0), sumN(0.0);
+
+    for (const CaloHit *pCaloHit : parentHitList3D)
+    {
+        if (TPC_3D != pCaloHit->GetHitType())
+            throw StatusCodeException(STATUS_CODE_FAILURE);
+
+        sumT += std::fabs(pCaloHit->GetX0());
+        sumN += 1.0;
+    }
+
+    t0 = ((sumN > 0. && std::fabs(sumT) > sumN) ? (sumT/sumN) : 0.);
 }
 
 //------------------------------------------------------------------------------------------------------------------------------------------

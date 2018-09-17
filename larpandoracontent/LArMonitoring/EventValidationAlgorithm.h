@@ -169,6 +169,14 @@ private:
     void ProcessOutput(const ValidationInfo &validationInfo, const bool useInterpretedMatching, const bool printToScreen, const bool fillTree) const;
 
     /**
+     *  @brief  Calculate the t0 for a pfo
+     *
+     *  @param  pPfo target pfo
+     *  @param  t0 to set
+     */
+    void BuildT0(const pandora::Pfo *pPfo, float &t0) const;
+
+    /**
      *  @brief  Apply an interpretative matching procedure to the comprehensive matches in the provided validation info object
      *
      *  @param  validationInfo the validation info
