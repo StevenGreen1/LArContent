@@ -14,6 +14,8 @@
 
 #include "larpandoracontent/LArMonitoring/EventValidationAlgorithm.h"
 
+#include "larpandoracontent/LArObjects/LArCaloHit.h"
+
 #include <sstream>
 
 using namespace pandora;
@@ -529,6 +531,7 @@ void EventValidationAlgorithm::BuildT0(const Pfo *pPfo, float &t0) const
     if (parentHitList3D.empty())
         return;
 
+    const LArTPCMap &larTPCMap(this->GetPandora().GetGeometry()->GetLArTPCMap());
     double sumT(0.0), sumN(0.0);
 
     for (const CaloHit *pCaloHit : parentHitList3D)
@@ -536,7 +539,13 @@ void EventValidationAlgorithm::BuildT0(const Pfo *pPfo, float &t0) const
         if (TPC_3D != pCaloHit->GetHitType())
             throw StatusCodeException(STATUS_CODE_FAILURE);
 
-        sumT += std::fabs(pCaloHit->GetX0());
+        const CaloHit *pParentCaloHit(static_cast<const CaloHit *>(pCaloHit->GetParentAddress()));
+        const LArCaloHit *const pLArCaloHit(dynamic_cast<const LArCaloHit*>(pParentCaloHit));
+        const unsigned int volumeId(pLArCaloHit->GetLArTPCVolumeId());
+        const LArTPC *const pLArTPC(larTPCMap.at(volumeId));
+        int sign(pLArTPC->IsDriftInPositiveX() ? 1.f : -1.f);
+
+        sumT += sign * pCaloHit->GetX0();
         sumN += 1.0;
     }
 
