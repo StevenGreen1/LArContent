@@ -429,6 +429,16 @@ private:
         AnalysisInfoVector &analysisInfoVector) const;
 
     /**
+     *  @brief  Add calo hit to relevant u, v or w list
+     *
+     *  @param  caloHitListU
+     *  @param  caloHitListV
+     *  @param  caloHitListW
+     *  @param  pCaloHit to add
+     */
+    void AddCaloHit(pandora::CaloHitList &caloHitListU, pandora::CaloHitList &caloHitListV, pandora::CaloHitList &caloHitListW, const pandora::CaloHit *pCaloHit) const;
+
+    /**
      *  @brief  Fill matched particle info
      *
      *  @param  pMCParticle

@@ -183,34 +183,10 @@ std::cout << "PiZeroAnalysisAlgorithm::FillAnalysisInfo" << std::endl;
             {
                 for (const CaloHit *pCaloHit: pair.second)
                 {
-                    if (pCaloHit->GetHitType() == TPC_VIEW_U)
-                    {
-                        allHitsPhoton1U.push_back(pCaloHit);
-                    }
-                    else if (pCaloHit->GetHitType() == TPC_VIEW_V)
-                    {
-                        allHitsPhoton1V.push_back(pCaloHit);
-                    }
-                    else if (pCaloHit->GetHitType() == TPC_VIEW_W)
-                    {
-                        allHitsPhoton1W.push_back(pCaloHit);
-                    }
+                    this->AddCaloHit(allHitsPhoton1U, allHitsPhoton1V, allHitsPhoton1W, pCaloHit);
 
                     if (pair.first == matchedParticle1.GetPfo())
-                    {
-                        if (pCaloHit->GetHitType() == TPC_VIEW_U)
-                        {
-                            sharedHitsPhoton1U.push_back(pCaloHit);
-                        }
-                        else if (pCaloHit->GetHitType() == TPC_VIEW_V)
-                        {
-                            sharedHitsPhoton1V.push_back(pCaloHit);
-                        }
-                        else if (pCaloHit->GetHitType() == TPC_VIEW_W)
-                        {
-                            sharedHitsPhoton1W.push_back(pCaloHit);
-                        }
-                    }
+                        this->AddCaloHit(sharedHitsPhoton1U, sharedHitsPhoton1V, sharedHitsPhoton1W, pCaloHit);
                 }
             }
 
@@ -232,34 +208,10 @@ std::cout << "PiZeroAnalysisAlgorithm::FillAnalysisInfo" << std::endl;
             {
                 for (const CaloHit *pCaloHit: pair.second)
                 {
-                    if (pCaloHit->GetHitType() == TPC_VIEW_U)
-                    {
-                        allHitsPhoton2U.push_back(pCaloHit);
-                    }
-                    else if (pCaloHit->GetHitType() == TPC_VIEW_V)
-                    {
-                        allHitsPhoton2V.push_back(pCaloHit);
-                    }
-                    else if (pCaloHit->GetHitType() == TPC_VIEW_W)
-                    {
-                        allHitsPhoton2W.push_back(pCaloHit);
-                    }
+                    this->AddCaloHit(allHitsPhoton2U, allHitsPhoton2V, allHitsPhoton2W, pCaloHit);
 
                     if (pair.first == matchedParticle2.GetPfo())
-                    {
-                        if (pCaloHit->GetHitType() == TPC_VIEW_U)
-                        {
-                            sharedHitsPhoton2U.push_back(pCaloHit);
-                        }
-                        else if (pCaloHit->GetHitType() == TPC_VIEW_V)
-                        {
-                            sharedHitsPhoton2V.push_back(pCaloHit);
-                        }
-                        else if (pCaloHit->GetHitType() == TPC_VIEW_W)
-                        {
-                            sharedHitsPhoton2W.push_back(pCaloHit);
-                        }
-                    }
+                        this->AddCaloHit(sharedHitsPhoton2U, sharedHitsPhoton2V, sharedHitsPhoton2W, pCaloHit);
                 }
             }
 
@@ -280,25 +232,33 @@ std::cout << "PiZeroAnalysisAlgorithm::FillAnalysisInfo" << std::endl;
 
 //------------------------------------------------------------------------------------------------------------------------------------------
 
+void PiZeroAnalysisAlgorithm::AddCaloHit(CaloHitList &caloHitListU, CaloHitList &caloHitListV, CaloHitList &caloHitListW, const CaloHit *pCaloHit) const
+{
+    if (pCaloHit->GetHitType() == TPC_VIEW_U)
+        caloHitListU.push_back(pCaloHit);
+
+    if (pCaloHit->GetHitType() == TPC_VIEW_V)
+        caloHitListV.push_back(pCaloHit);
+
+    if (pCaloHit->GetHitType() == TPC_VIEW_W)
+        caloHitListW.push_back(pCaloHit);
+}
+
+//------------------------------------------------------------------------------------------------------------------------------------------
+
 PiZeroAnalysisAlgorithm::MatchedParticle PiZeroAnalysisAlgorithm::FillMatchedParticleInfo(const MCParticle *const pMCParticle, LArMCParticleHelper::MCContributionMap &mcParticleToHitsMap,
     LArMCParticleHelper::PfoContributionMap &pfoToHitsMap, LArMCParticleHelper::MCParticleToPfoHitSharingMap &mcParticleToPfoHitSharingMap) const
 {
-std::cout << "PiZeroAnalysisAlgorithm::FillMatchedParticleInfo" << std::endl;
     if (mcParticleToHitsMap.find(pMCParticle) == mcParticleToHitsMap.end())
-    {
-        std::cout << "Missing MC particle in map" << std::endl;
-    }
-//    const int nMCHits(mcParticleToHitsMap.at(pMCParticle).size());
-    CaloHitList mcCaloHitList(mcParticleToHitsMap.at(pMCParticle));
+        throw StatusCodeException(STATUS_CODE_NOT_FOUND);
 
+    CaloHitList mcCaloHitList(mcParticleToHitsMap.at(pMCParticle));
     const Pfo *pBestMatch(nullptr);
     int nSharedHits(0);
     CaloHitList sharedCaloHitList;
 
     if (mcParticleToPfoHitSharingMap.find(pMCParticle) == mcParticleToPfoHitSharingMap.end())
-    {
-        std::cout << "Missing MC particle sharing in map" << std::endl;
-    }
+        throw StatusCodeException(STATUS_CODE_NOT_FOUND);
 
     for (const auto &pair : mcParticleToPfoHitSharingMap.at(pMCParticle))
     {
@@ -310,9 +270,7 @@ std::cout << "PiZeroAnalysisAlgorithm::FillMatchedParticleInfo" << std::endl;
         }
     }
 
-//    const int nPfoHits(pfoToHitsMap.at(pBestMatch).size());
     CaloHitList pfoCaloHitList(pfoToHitsMap.at(pBestMatch));
-
     return MatchedParticle(pMCParticle, pBestMatch, mcCaloHitList, pfoCaloHitList, sharedCaloHitList, m_hitToGeV);
 }
 
@@ -501,17 +459,13 @@ void PiZeroAnalysisAlgorithm::MatchedParticle::CountHits(CaloHitList &caloHitLis
     for (const CaloHit *pCaloHit : caloHitList)
     {
         if (pCaloHit->GetHitType() == TPC_VIEW_U)
-        {
             nHitsU++;
-        }
+
         if (pCaloHit->GetHitType() == TPC_VIEW_V)
-        {
             nHitsV++;
-        }
+
         if (pCaloHit->GetHitType() == TPC_VIEW_W)
-        {
             nHitsW++;
-        }
     }
 }
 
@@ -528,11 +482,6 @@ void PiZeroAnalysisAlgorithm::MatchedParticle::CalculateRecoEnergy(CaloHitList &
     LArPfoHelper::GetIsolatedCaloHits(m_pMatchedPfo, TPC_VIEW_U, caloHitList);
     LArPfoHelper::GetIsolatedCaloHits(m_pMatchedPfo, TPC_VIEW_V, caloHitList);
     LArPfoHelper::GetIsolatedCaloHits(m_pMatchedPfo, TPC_VIEW_W, caloHitList);
-
-/*
-    for (const CaloHit *pCaloHit : caloHitList)
-        m_recoEnergy += pCaloHit->GetInputEnergy();
-*/
 
     // Reco Energy
     m_recoEnergy = 0.f;
