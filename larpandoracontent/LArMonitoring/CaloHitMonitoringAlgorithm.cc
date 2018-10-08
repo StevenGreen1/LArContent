@@ -8,6 +8,7 @@
 
 #include "Pandora/AlgorithmHeaders.h"
 
+#include "larpandoracontent/LArHelpers/LArDeepLearningHelper.h"
 #include "larpandoracontent/LArHelpers/LArMCParticleHelper.h"
 #include "larpandoracontent/LArHelpers/LArMvaHelper.h"
 #include "larpandoracontent/LArHelpers/LArPfoHelper.h"
@@ -91,7 +92,7 @@ StatusCode CaloHitMonitoringAlgorithm::Run()
             }
 
             KerasModel::DataBlock2D dataBlock2D;
-            this->HistogramToDataBlock(twoDHistogram, dataBlock2D);
+            LArDeepLearningHelper::HistogramToDataBlock(twoDHistogram, dataBlock2D);
             Data1D outputData1D;
             m_kerasModel.CalculateOutput(&dataBlock2D, outputData1D, this);
 
@@ -111,26 +112,6 @@ StatusCode CaloHitMonitoringAlgorithm::Run()
     }
 
     return STATUS_CODE_SUCCESS;
-}
-
-//------------------------------------------------------------------------------------------------------------------------------------------
-
-void CaloHitMonitoringAlgorithm::HistogramToDataBlock(const TwoDHistogram &twoDHistogram, KerasModel::DataBlock2D &dataBlock2D)
-{
-    Data3D data3D;
-    Data2D data2D;
-    for (int yBin = 0; yBin < twoDHistogram.GetNBinsY(); yBin++)
-    {
-        Data1D data1D;
-        for (int xBin = 0; xBin < twoDHistogram.GetNBinsX(); xBin++)
-        {
-            data1D.Append(twoDHistogram.GetBinContent(xBin, yBin) * 256.f / 10000.f );
-        }
-        data2D.Append(data1D);
-    }
-    data3D.Append(data2D);
-    dataBlock2D.SetData(data3D);
-    return;
 }
 
 //------------------------------------------------------------------------------------------------------------------------------------------

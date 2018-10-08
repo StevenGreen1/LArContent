@@ -31,14 +31,6 @@ public:
      */
     ~CaloHitMonitoringAlgorithm();
 
-    /**
-     *  @brief  Function to convert Pandora histogram to Keras data block
-     *
-     *  @param  twoDHistogram histogram to convert
-     *  @param  dataBlock2D data block to populate
-     */
-    void HistogramToDataBlock(const pandora::TwoDHistogram &twoDHistogram, KerasModel::DataBlock2D &dataBlock2D);
-
 private:
     pandora::StatusCode Run();
     pandora::StatusCode ReadSettings(const pandora::TiXmlHandle xmlHandle);
