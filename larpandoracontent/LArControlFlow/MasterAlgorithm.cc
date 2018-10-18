@@ -55,6 +55,13 @@ MasterAlgorithm::MasterAlgorithm() :
 
 //------------------------------------------------------------------------------------------------------------------------------------------
 
+MasterAlgorithm::~MasterAlgorithm()
+{
+    PANDORA_MONITORING_API(SaveTree(this->GetPandora(), m_treeName.c_str(), m_fileName.c_str(), "UPDATE"));
+}
+
+//------------------------------------------------------------------------------------------------------------------------------------------
+
 void MasterAlgorithm::ShiftPfoHierarchy(const ParticleFlowObject *const pParentPfo, const PfoToLArTPCMap &pfoToLArTPCMap, const float x0) const
 {
     if (!pParentPfo->GetParentPfoList().empty())
@@ -75,6 +82,11 @@ void MasterAlgorithm::ShiftPfoHierarchy(const ParticleFlowObject *const pParentP
         PANDORA_MONITORING_API(VisualizeParticleFlowObjects(this->GetPandora(), &pfoList, "BeforeShiftCRPfos", GREEN));
     }
 
+    CartesianVector rightLow(std::numeric_limits<float>::max(), std::numeric_limits<float>::max(), std::numeric_limits<float>::max());
+    CartesianVector leftHigh(-std::numeric_limits<float>::max(), -std::numeric_limits<float>::max(), -std::numeric_limits<float>::max());
+    CartesianVector rightHigh(-std::numeric_limits<float>::max(), -std::numeric_limits<float>::max(), -std::numeric_limits<float>::max());
+    CartesianVector leftLow(std::numeric_limits<float>::max(), std::numeric_limits<float>::max(), std::numeric_limits<float>::max());
+
     for (const ParticleFlowObject *const pDaughterPfo : pfoList)
     {
         CaloHitList caloHitList;
@@ -89,6 +101,26 @@ void MasterAlgorithm::ShiftPfoHierarchy(const ParticleFlowObject *const pParentP
             PandoraContentApi::CaloHit::Metadata metadata;
             metadata.m_x0 = signedX0;
             PANDORA_THROW_RESULT_IF(STATUS_CODE_SUCCESS, !=, PandoraContentApi::CaloHit::AlterMetadata(*this, pCaloHit, metadata));
+
+            if (pCaloHit->GetHitType() == TPC_3D)
+            {
+                if (larTPCIter->second->IsDriftInPositiveX())
+                {
+                    if (pCaloHit->GetPositionVector().GetX() < rightLow.GetX())
+                        rightLow = pCaloHit->GetPositionVector();
+
+                    if (pCaloHit->GetPositionVector().GetX() > rightHigh.GetX())
+                        rightHigh = pCaloHit->GetPositionVector();
+                }
+                else
+                {
+                    if (pCaloHit->GetPositionVector().GetX() > leftHigh.GetX())
+                        leftHigh = pCaloHit->GetPositionVector();
+
+                    if (pCaloHit->GetPositionVector().GetX() < leftLow.GetX())
+                        leftLow = pCaloHit->GetPositionVector();
+                }
+            }
         }
 
         for (const Vertex *const pVertex : pDaughterPfo->GetVertexList())
@@ -99,8 +131,26 @@ void MasterAlgorithm::ShiftPfoHierarchy(const ParticleFlowObject *const pParentP
         }
     }
 
+    PANDORA_MONITORING_API(SetTreeVariable(this->GetPandora(), m_treeName.c_str(), "leftHighX", leftHigh.GetX()));
+    PANDORA_MONITORING_API(SetTreeVariable(this->GetPandora(), m_treeName.c_str(), "leftHighY", leftHigh.GetY()));
+    PANDORA_MONITORING_API(SetTreeVariable(this->GetPandora(), m_treeName.c_str(), "leftHighZ", leftHigh.GetZ()));
+    PANDORA_MONITORING_API(SetTreeVariable(this->GetPandora(), m_treeName.c_str(), "leftLowX", leftLow.GetX()));
+    PANDORA_MONITORING_API(SetTreeVariable(this->GetPandora(), m_treeName.c_str(), "leftLowY", leftLow.GetY()));
+    PANDORA_MONITORING_API(SetTreeVariable(this->GetPandora(), m_treeName.c_str(), "leftLowZ", leftLow.GetZ()));
+    PANDORA_MONITORING_API(SetTreeVariable(this->GetPandora(), m_treeName.c_str(), "rightLowX", rightLow.GetX()));
+    PANDORA_MONITORING_API(SetTreeVariable(this->GetPandora(), m_treeName.c_str(), "rightLowY", rightLow.GetY()));
+    PANDORA_MONITORING_API(SetTreeVariable(this->GetPandora(), m_treeName.c_str(), "rightLowZ", rightLow.GetZ()));
+    PANDORA_MONITORING_API(SetTreeVariable(this->GetPandora(), m_treeName.c_str(), "rightHighX", rightHigh.GetX()));
+    PANDORA_MONITORING_API(SetTreeVariable(this->GetPandora(), m_treeName.c_str(), "rightHighY", rightHigh.GetY()));
+    PANDORA_MONITORING_API(SetTreeVariable(this->GetPandora(), m_treeName.c_str(), "rightHighZ", rightHigh.GetZ()));
+    PANDORA_MONITORING_API(FillTree(this->GetPandora(), m_treeName.c_str()));
+
     if (m_visualizeOverallRecoStatus)
     {
+        PANDORA_MONITORING_API(AddMarkerToVisualization(this->GetPandora(), &leftHigh, "LeftSideHighX", BLUE, 3));
+        PANDORA_MONITORING_API(AddMarkerToVisualization(this->GetPandora(), &leftLow, "LeftSideLowX", BLUE, 3));
+        PANDORA_MONITORING_API(AddMarkerToVisualization(this->GetPandora(), &rightLow, "rightSideLowX", BLUE, 3));
+        PANDORA_MONITORING_API(AddMarkerToVisualization(this->GetPandora(), &rightHigh, "rightSideHighX", BLUE, 3));
         PANDORA_MONITORING_API(VisualizeParticleFlowObjects(this->GetPandora(), &pfoList, "AfterShiftCRPfos", RED));
         PANDORA_MONITORING_API(ViewEvent(this->GetPandora()));
     }
@@ -1143,6 +1193,9 @@ StatusCode MasterAlgorithm::ReadSettings(const TiXmlHandle xmlHandle)
     PANDORA_RETURN_RESULT_IF(STATUS_CODE_SUCCESS, !=, XmlHelper::ReadValue(xmlHandle, "RecreatedClusterListName", m_recreatedClusterListName));
     PANDORA_RETURN_RESULT_IF(STATUS_CODE_SUCCESS, !=, XmlHelper::ReadValue(xmlHandle, "RecreatedVertexListName", m_recreatedVertexListName));
     PANDORA_RETURN_RESULT_IF_AND_IF(STATUS_CODE_SUCCESS, STATUS_CODE_NOT_FOUND, !=, XmlHelper::ReadValue(xmlHandle, "InTimeMaxX0", m_inTimeMaxX0));
+
+    PANDORA_RETURN_RESULT_IF(STATUS_CODE_SUCCESS, !=, XmlHelper::ReadValue(xmlHandle, "OutputTree", m_treeName));
+    PANDORA_RETURN_RESULT_IF(STATUS_CODE_SUCCESS, !=, XmlHelper::ReadValue(xmlHandle, "OutputFile", m_fileName));
 
     return STATUS_CODE_SUCCESS;
 }

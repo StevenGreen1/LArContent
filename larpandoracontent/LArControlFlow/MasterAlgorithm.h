@@ -42,6 +42,11 @@ public:
     MasterAlgorithm();
 
     /**
+     *  @brief  Default destructor
+     */
+    ~MasterAlgorithm();
+
+    /**
      *  @brief  External steering parameters class
      */
     class ExternalSteeringParameters : public pandora::ExternalParameters
@@ -336,6 +341,9 @@ private:
     std::string                 m_recreatedVertexListName;          ///< The output recreated vertex list name
 
     float                       m_inTimeMaxX0;                      ///< Cut on X0 to determine whether particle is clear cosmic ray
+
+    std::string                 m_treeName;                         ///< Name of output tree
+    std::string                 m_fileName;                         ///< Name of output file
 };
 
 //------------------------------------------------------------------------------------------------------------------------------------------
