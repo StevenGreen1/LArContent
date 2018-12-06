@@ -219,6 +219,13 @@ private:
      */
     bool IsGoodMatch(const pandora::CaloHitList &trueHits, const pandora::CaloHitList &recoHits, const pandora::CaloHitList &sharedHits) const;
 
+    int CanCosmicBeStitched(const pandora::MCParticle *const pMCParticle, int &nHitsTPC1, int &nHitsTPC2) const;
+
+    int HasCosmicBeStitched(const pandora::Pfo *const pPfo, int &nHitsTPC1, int &nHitsTPC2) const;
+
+    int CountTPCHits(const pandora::CaloHitList &caloHitList, int &nHitsTPC1, int &nHitsTPC2) const;
+
+
     pandora::StatusCode ReadSettings(const pandora::TiXmlHandle xmlHandle);
 
     typedef std::vector<pandora::HitType> HitTypeVector;

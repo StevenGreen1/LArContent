@@ -185,6 +185,7 @@ void EventValidationAlgorithm::ProcessOutput(const ValidationInfo &validationInf
     FloatVector mcPrimaryVtxX, mcPrimaryVtxY, mcPrimaryVtxZ, mcPrimaryEndX, mcPrimaryEndY, mcPrimaryEndZ;
     IntVector nPrimaryMatchedPfos, nPrimaryMatchedNuPfos, nPrimaryMatchedCRPfos;
     FloatVector bestMatchPfoT0;
+    IntVector bestMatchPfoHasBeenStitched, bestMatchPfoHitsTPC1, bestMatchPfoHitsTPC2;
     IntVector bestMatchPfoId, bestMatchPfoPdg, bestMatchPfoIsRecoNu, bestMatchPfoRecoNuId, bestMatchPfoIsTestBeam;
     IntVector bestMatchPfoNHitsTotal, bestMatchPfoNHitsU, bestMatchPfoNHitsV, bestMatchPfoNHitsW;
     IntVector bestMatchPfoNSharedHitsTotal, bestMatchPfoNSharedHitsU, bestMatchPfoNSharedHitsV, bestMatchPfoNSharedHitsW;
@@ -210,6 +211,10 @@ void EventValidationAlgorithm::ProcessOutput(const ValidationInfo &validationInf
         const int isBeamNeutrinoFinalState(LArMCParticleHelper::IsBeamNeutrinoFinalState(pMCPrimary));
         const int isBeamParticle(LArMCParticleHelper::IsBeamParticle(pMCPrimary));
         const int isCosmicRay(LArMCParticleHelper::IsCosmicRay(pMCPrimary));
+
+        int nMCHitsTPC1(std::numeric_limits<int>::max()), nMCHitsTPC2(std::numeric_limits<int>::max());
+        const int canCosmicBeStitched(isCosmicRay ? this->CanCosmicBeStitched(pMCPrimary, nMCHitsTPC1, nMCHitsTPC2) : 0);
+
 #ifdef MONITORING
         const CartesianVector &targetVertex(LArMCParticleHelper::GetParentMCParticle(pMCPrimary)->GetVertex());
         const float targetVertexX(targetVertex.GetX()), targetVertexY(targetVertex.GetY()), targetVertexZ(targetVertex.GetZ());
@@ -257,6 +262,9 @@ void EventValidationAlgorithm::ProcessOutput(const ValidationInfo &validationInf
             const bool isRecoTestBeam(LArPfoHelper::IsTestBeam(pfoToSharedHits.first));
             const bool isGoodMatch(this->IsGoodMatch(mcPrimaryHitList, pfoHitList, sharedHitList));
 
+            int nPfoHitsTPC1(std::numeric_limits<int>::max()), nPfoHitsTPC2(std::numeric_limits<int>::max());
+            const int hasCosmicBeStitched((!isRecoTestBeam && !isRecoNeutrinoFinalState) ? this->HasCosmicBeStitched(pfoToSharedHits.first, nPfoHitsTPC1, nPfoHitsTPC2) : 0);
+
             const int pfoId(pfoToIdMap.at(pfoToSharedHits.first));
             const int recoNuId(isRecoNeutrinoFinalState ? neutrinoPfoToIdMap.at(LArPfoHelper::GetParentNeutrino(pfoToSharedHits.first)) : -1);
 
@@ -267,6 +275,9 @@ void EventValidationAlgorithm::ProcessOutput(const ValidationInfo &validationInf
             {
                 bestMatchPfoId.push_back(pfoId);
                 bestMatchPfoT0.push_back(pfoT0);
+                bestMatchPfoHasBeenStitched.push_back(hasCosmicBeStitched);
+                bestMatchPfoHitsTPC1.push_back(nPfoHitsTPC1);
+                bestMatchPfoHitsTPC2.push_back(nPfoHitsTPC2);
                 bestMatchPfoPdg.push_back(pfoToSharedHits.first->GetParticleId());
                 bestMatchPfoIsRecoNu.push_back(isRecoNeutrinoFinalState ? 1 : 0);
                 bestMatchPfoRecoNuId.push_back(recoNuId);
@@ -289,18 +300,6 @@ void EventValidationAlgorithm::ProcessOutput(const ValidationInfo &validationInf
                 }
                 catch (const StatusCodeException &) {}
 #endif
-/*
-                if (std::fabs(pfoT0) > 0.f)
-                {
-                    std::cout << "MC T0   : " << (mcT0/1000.f) - 250.f << std::endl;
-                    std::cout << "Reco T0 : " << (pfoT0/ 0.0802814f) * 0.5f << std::endl;
-                    PfoList *pPfoList = new PfoList();
-                    pPfoList->push_back(pfoToSharedHits.first);
-                    PANDORA_MONITORING_API(SetEveDisplayParameters(this->GetPandora(), true, DETECTOR_VIEW_XZ, -1.f, 1.f, 1.f));
-                    PANDORA_MONITORING_API(VisualizeParticleFlowObjects(this->GetPandora(), pPfoList, "TargetPfo", AUTO, true, true));
-                    PANDORA_MONITORING_API(ViewEvent(this->GetPandora()));
-                }
-*/
             }
 
             if (isGoodMatch) ++nPrimaryMatches;
@@ -347,6 +346,7 @@ void EventValidationAlgorithm::ProcessOutput(const ValidationInfo &validationInf
         {
             targetSS << "-No matched Pfo" << std::endl;
             bestMatchPfoId.push_back(-1); bestMatchPfoT0.push_back(0); bestMatchPfoPdg.push_back(0); bestMatchPfoIsRecoNu.push_back(0); bestMatchPfoRecoNuId.push_back(-1); bestMatchPfoIsTestBeam.push_back(0);
+            bestMatchPfoHasBeenStitched.push_back(std::numeric_limits<int>::max()), bestMatchPfoHitsTPC1.push_back(std::numeric_limits<int>::max()), bestMatchPfoHitsTPC2.push_back(std::numeric_limits<int>::max());
             bestMatchPfoNHitsTotal.push_back(0); bestMatchPfoNHitsU.push_back(0); bestMatchPfoNHitsV.push_back(0); bestMatchPfoNHitsW.push_back(0);
             bestMatchPfoNSharedHitsTotal.push_back(0); bestMatchPfoNSharedHitsU.push_back(0); bestMatchPfoNSharedHitsV.push_back(0); bestMatchPfoNSharedHitsW.push_back(0);
         }
@@ -370,6 +370,9 @@ void EventValidationAlgorithm::ProcessOutput(const ValidationInfo &validationInf
             PANDORA_MONITORING_API(SetTreeVariable(this->GetPandora(), m_treeName.c_str(), "isNeutrino", isBeamNeutrinoFinalState));
             PANDORA_MONITORING_API(SetTreeVariable(this->GetPandora(), m_treeName.c_str(), "isBeamParticle", isBeamParticle));
             PANDORA_MONITORING_API(SetTreeVariable(this->GetPandora(), m_treeName.c_str(), "isCosmicRay", isCosmicRay));
+            PANDORA_MONITORING_API(SetTreeVariable(this->GetPandora(), m_treeName.c_str(), "canCosmicBeStitched", canCosmicBeStitched));
+            PANDORA_MONITORING_API(SetTreeVariable(this->GetPandora(), m_treeName.c_str(), "nMCHitsTPC1", nMCHitsTPC1));
+            PANDORA_MONITORING_API(SetTreeVariable(this->GetPandora(), m_treeName.c_str(), "nMCHitsTPC2", nMCHitsTPC2));
             PANDORA_MONITORING_API(SetTreeVariable(this->GetPandora(), m_treeName.c_str(), "nTargetPrimaries", nTargetPrimaries));
             PANDORA_MONITORING_API(SetTreeVariable(this->GetPandora(), m_treeName.c_str(), "targetVertexX", targetVertexX));
             PANDORA_MONITORING_API(SetTreeVariable(this->GetPandora(), m_treeName.c_str(), "targetVertexY", targetVertexY));
@@ -398,6 +401,9 @@ void EventValidationAlgorithm::ProcessOutput(const ValidationInfo &validationInf
             PANDORA_MONITORING_API(SetTreeVariable(this->GetPandora(), m_treeName.c_str(), "nPrimaryMatchedCRPfos", &nPrimaryMatchedCRPfos));
             PANDORA_MONITORING_API(SetTreeVariable(this->GetPandora(), m_treeName.c_str(), "bestMatchPfoT0", &bestMatchPfoT0));
             PANDORA_MONITORING_API(SetTreeVariable(this->GetPandora(), m_treeName.c_str(), "bestMatchPfoId", &bestMatchPfoId));
+            PANDORA_MONITORING_API(SetTreeVariable(this->GetPandora(), m_treeName.c_str(), "bestMatchPfoHasBeenStitched", &bestMatchPfoHasBeenStitched));
+            PANDORA_MONITORING_API(SetTreeVariable(this->GetPandora(), m_treeName.c_str(), "bestMatchPfoHitsTPC1", &bestMatchPfoHitsTPC1));
+            PANDORA_MONITORING_API(SetTreeVariable(this->GetPandora(), m_treeName.c_str(), "bestMatchPfoHitsTPC2", &bestMatchPfoHitsTPC2));
             PANDORA_MONITORING_API(SetTreeVariable(this->GetPandora(), m_treeName.c_str(), "bestMatchPfoPdg", &bestMatchPfoPdg));
             PANDORA_MONITORING_API(SetTreeVariable(this->GetPandora(), m_treeName.c_str(), "bestMatchPfoIsRecoNu", &bestMatchPfoIsRecoNu));
             PANDORA_MONITORING_API(SetTreeVariable(this->GetPandora(), m_treeName.c_str(), "bestMatchPfoRecoNuId", &bestMatchPfoRecoNuId));
@@ -496,6 +502,7 @@ void EventValidationAlgorithm::ProcessOutput(const ValidationInfo &validationInf
             mcPrimaryVtxX.clear(); mcPrimaryVtxY.clear(); mcPrimaryVtxZ.clear(); mcPrimaryEndX.clear(); mcPrimaryEndY.clear(); mcPrimaryEndZ.clear();
             nPrimaryMatchedPfos.clear(); nPrimaryMatchedNuPfos.clear(); nPrimaryMatchedCRPfos.clear();
             bestMatchPfoT0.clear();
+            bestMatchPfoHasBeenStitched.clear(); bestMatchPfoHitsTPC1.clear(); bestMatchPfoHitsTPC2.clear();
             bestMatchPfoId.clear(); bestMatchPfoPdg.clear(); bestMatchPfoIsRecoNu.clear(); bestMatchPfoRecoNuId.clear(); bestMatchPfoIsTestBeam.clear();
             bestMatchPfoNHitsTotal.clear(); bestMatchPfoNHitsU.clear(); bestMatchPfoNHitsV.clear(); bestMatchPfoNHitsW.clear();
             bestMatchPfoNSharedHitsTotal.clear(); bestMatchPfoNSharedHitsU.clear(); bestMatchPfoNSharedHitsV.clear(); bestMatchPfoNSharedHitsW.clear();
@@ -670,6 +677,83 @@ bool EventValidationAlgorithm::IsGoodMatch(const CaloHitList &trueHits, const Ca
     const float completeness((trueHits.size() > 0) ? static_cast<float>(sharedHits.size()) / static_cast<float>(trueHits.size()) : 0.f);
 
     return ((sharedHits.size() >= m_matchingMinSharedHits) && (purity >= m_matchingMinPurity) && (completeness >= m_matchingMinCompleteness));
+}
+
+//------------------------------------------------------------------------------------------------------------------------------------------
+
+int EventValidationAlgorithm::CanCosmicBeStitched(const MCParticle *const pMCParticle, int &nHitsTPC1, int &nHitsTPC2) const
+{
+    const CaloHitList *pCaloHitList(nullptr);
+    PANDORA_RETURN_RESULT_IF(STATUS_CODE_SUCCESS, !=, PandoraContentApi::GetList(*this, m_caloHitListName, pCaloHitList));
+
+    CaloHitList mcParticleCaloHitList;
+
+    for (const CaloHit *pCaloHit : *pCaloHitList)
+    {
+        if (MCParticleHelper::GetMainMCParticle(pCaloHit) == pMCParticle)
+            mcParticleCaloHitList.push_back(pCaloHit);
+    }
+
+    return this->CountTPCHits(mcParticleCaloHitList, nHitsTPC1, nHitsTPC2);
+}
+
+//------------------------------------------------------------------------------------------------------------------------------------------
+
+int EventValidationAlgorithm::CountTPCHits(const CaloHitList &caloHitList, int &nHitsTPC1, int &nHitsTPC2) const
+{
+    typedef std::map<int, int> IntToIntMap;
+    IntToIntMap tpcIDToNHits;
+
+    for (const CaloHit *pCaloHit : caloHitList)
+    {
+        const LArCaloHit *const pLArCaloHit(dynamic_cast<const LArCaloHit*>(pCaloHit));
+        const int volumeId(pLArCaloHit->GetLArTPCVolumeId());
+
+        if (tpcIDToNHits.find(volumeId) == tpcIDToNHits.end())
+        {
+            tpcIDToNHits.insert(std::make_pair(volumeId, 1));
+        }
+        else
+        {
+            tpcIDToNHits.at(volumeId) += 1;
+        }
+    }
+
+    try
+    {
+        if (tpcIDToNHits.size() == 2)
+        {
+            nHitsTPC1 = std::max(tpcIDToNHits.at(0), tpcIDToNHits.at(1));
+            nHitsTPC2 = std::min(tpcIDToNHits.at(0), tpcIDToNHits.at(1));
+            return 1;
+        }
+        else if (tpcIDToNHits.size() < 2)
+        {
+            return 0;
+        }
+        else
+        {
+            throw StatusCodeException(STATUS_CODE_FAILURE);
+        }
+    }
+    catch (...)
+    {
+        std::cout << "EventValidationAlgorithm::CountTPCHits - Problem counting stitched hits, resetting to assume no stitching/stitching not possible" << std::endl;
+        nHitsTPC1 = std::numeric_limits<int>::max();
+        nHitsTPC2 = std::numeric_limits<int>::max();
+    }
+    return 0;
+}
+
+//------------------------------------------------------------------------------------------------------------------------------------------
+
+int EventValidationAlgorithm::HasCosmicBeStitched(const pandora::Pfo *const pPfo, int &nHitsTPC1, int &nHitsTPC2) const
+{
+    CaloHitList caloHitList;
+    LArPfoHelper::GetCaloHits(pPfo, TPC_VIEW_U, caloHitList);
+    LArPfoHelper::GetCaloHits(pPfo, TPC_VIEW_V, caloHitList);
+    LArPfoHelper::GetCaloHits(pPfo, TPC_VIEW_W, caloHitList);
+    return this->CountTPCHits(caloHitList, nHitsTPC1, nHitsTPC2);
 }
 
 //------------------------------------------------------------------------------------------------------------------------------------------
