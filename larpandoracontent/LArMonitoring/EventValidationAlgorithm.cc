@@ -690,8 +690,12 @@ int EventValidationAlgorithm::CanCosmicBeStitched(const MCParticle *const pMCPar
 
     for (const CaloHit *pCaloHit : *pCaloHitList)
     {
-        if (MCParticleHelper::GetMainMCParticle(pCaloHit) == pMCParticle)
-            mcParticleCaloHitList.push_back(pCaloHit);
+        try
+        {
+            if (MCParticleHelper::GetMainMCParticle(pCaloHit) == pMCParticle)
+                mcParticleCaloHitList.push_back(pCaloHit);
+        }
+        catch (...) {}
     }
 
     return this->CountTPCHits(mcParticleCaloHitList, nHitsTPC1, nHitsTPC2);
@@ -703,6 +707,8 @@ int EventValidationAlgorithm::CountTPCHits(const CaloHitList &caloHitList, int &
 {
     typedef std::map<int, int> IntToIntMap;
     IntToIntMap tpcIDToNHits;
+
+std::cout << "New calo hit list" << std::endl;
 
     for (const CaloHit *pCaloHit : caloHitList)
     {
@@ -719,12 +725,22 @@ int EventValidationAlgorithm::CountTPCHits(const CaloHitList &caloHitList, int &
         }
     }
 
+    for (const auto iter : tpcIDToNHits)
+        std::cout << "Volume Id : " << iter.first << ", nHits " << iter.second << std::endl;
+
     try
     {
         if (tpcIDToNHits.size() == 2)
         {
-            nHitsTPC1 = std::max(tpcIDToNHits.at(0), tpcIDToNHits.at(1));
-            nHitsTPC2 = std::min(tpcIDToNHits.at(0), tpcIDToNHits.at(1));
+            nHitsTPC1 = -std::numeric_limits<int>::max();
+            nHitsTPC2 = std::numeric_limits<int>::max();
+
+            for (const auto iter : tpcIDToNHits)
+            {
+                nHitsTPC1 = std::max(nHitsTPC1, iter.second);
+                nHitsTPC2 = std::min(nHitsTPC2, iter.second);
+            }
+
             return 1;
         }
         else if (tpcIDToNHits.size() < 2)
