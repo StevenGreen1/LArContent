@@ -708,8 +708,6 @@ int EventValidationAlgorithm::CountTPCHits(const CaloHitList &caloHitList, int &
     typedef std::map<int, int> IntToIntMap;
     IntToIntMap tpcIDToNHits;
 
-std::cout << "New calo hit list" << std::endl;
-
     for (const CaloHit *pCaloHit : caloHitList)
     {
         const LArCaloHit *const pLArCaloHit(dynamic_cast<const LArCaloHit*>(pCaloHit));
@@ -724,9 +722,6 @@ std::cout << "New calo hit list" << std::endl;
             tpcIDToNHits.at(volumeId) += 1;
         }
     }
-
-    for (const auto iter : tpcIDToNHits)
-        std::cout << "Volume Id : " << iter.first << ", nHits " << iter.second << std::endl;
 
     try
     {
