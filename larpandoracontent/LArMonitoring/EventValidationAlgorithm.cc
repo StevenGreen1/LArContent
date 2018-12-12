@@ -532,6 +532,12 @@ void EventValidationAlgorithm::ProcessOutput(const ValidationInfo &validationInf
 
 void EventValidationAlgorithm::BuildT0(const Pfo *pPfo, float &t0) const
 {
+    const PropertiesMap &properties(pPfo->GetPropertiesMap());
+    const PropertiesMap::const_iterator iter(properties.find("X0"));
+    if (iter != properties.end())
+        t0 = iter->second;
+
+/*
     CaloHitList parentHitList3D;
     LArPfoHelper::GetCaloHits(pPfo, TPC_3D, parentHitList3D);
 
@@ -557,6 +563,7 @@ void EventValidationAlgorithm::BuildT0(const Pfo *pPfo, float &t0) const
     }
 
     t0 = ((sumN > 0. && std::fabs(sumT) > sumN) ? (sumT/sumN) : 0.);
+*/
 }
 
 //------------------------------------------------------------------------------------------------------------------------------------------
