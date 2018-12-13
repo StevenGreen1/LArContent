@@ -564,8 +564,8 @@ void StitchingCosmicRayMergingTool::StitchPfos(const MasterAlgorithm *const pAlg
                 PANDORA_THROW_RESULT_IF(STATUS_CODE_SUCCESS, !=, PandoraContentApi::ParticleFlowObject::AlterMetadata(*pAlgorithm, pPfoToShift, metadata));
 
                 const float sign(pfoToPointingVertexMap.at(pPfoToShift).GetPosition().GetX() < tpcBoundaryCenterX ? 1.f : -1.f);
-                x0 = std::fabs(x0) * sign;
-                pAlgorithm->ShiftPfoHierarchy(pPfoToShift, pfoToLArTPCMap, x0);
+                const float signedX0(std::fabs(x0) * sign);
+                pAlgorithm->ShiftPfoHierarchy(pPfoToShift, pfoToLArTPCMap, signedX0);
             }
         }
 
