@@ -560,9 +560,8 @@ void StitchingCosmicRayMergingTool::StitchPfos(const MasterAlgorithm *const pAlg
 
             for (const ParticleFlowObject *const pPfoToShift : pfoVector)
             {
-                const float t0Sign(isCPAStitch ? x0 : -x0);
+                const float t0Sign(isCPAStitch ? -1.f : 1.f);
                 object_creation::ParticleFlowObject::Metadata metadata;
-
                 metadata.m_propertiesToAdd["X0"] = x0 * t0Sign;
                 PANDORA_THROW_RESULT_IF(STATUS_CODE_SUCCESS, !=, PandoraContentApi::ParticleFlowObject::AlterMetadata(*pAlgorithm, pPfoToShift, metadata));
 
