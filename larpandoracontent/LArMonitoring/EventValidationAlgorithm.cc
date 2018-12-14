@@ -290,6 +290,37 @@ void EventValidationAlgorithm::ProcessOutput(const ValidationInfo &validationInf
                 bestMatchPfoNSharedHitsU.push_back(LArMonitoringHelper::CountHitsByType(TPC_VIEW_U, sharedHitList));
                 bestMatchPfoNSharedHitsV.push_back(LArMonitoringHelper::CountHitsByType(TPC_VIEW_V, sharedHitList));
                 bestMatchPfoNSharedHitsW.push_back(LArMonitoringHelper::CountHitsByType(TPC_VIEW_W, sharedHitList));
+
+if (canCosmicBeStitched == 1 && hasCosmicBeStitched == 0)
+{
+PANDORA_MONITORING_API(SetEveDisplayParameters(this->GetPandora(), true, DETECTOR_VIEW_XZ, -1.f, 1.f, 1.f));
+CaloHitList caloHitListU, caloHitListV, caloHitListW;
+for (const CaloHit *const pCaloHit : mcPrimaryHitList)
+{
+    if (pCaloHit->GetHitType() == TPC_VIEW_U)
+    {
+        caloHitListU.push_back(pCaloHit);
+    }
+    else if (pCaloHit->GetHitType() == TPC_VIEW_V)
+    {
+        caloHitListV.push_back(pCaloHit);
+    }
+    else if (pCaloHit->GetHitType() == TPC_VIEW_W)
+    {
+        caloHitListW.push_back(pCaloHit);
+    }
+}
+PANDORA_MONITORING_API(VisualizeCaloHits(this->GetPandora(), &caloHitListU, "UHitsInStitchableCosmic", RED));
+PANDORA_MONITORING_API(VisualizeCaloHits(this->GetPandora(), &caloHitListV, "VHitsInStitchableCosmic", DARKGREEN));
+PANDORA_MONITORING_API(VisualizeCaloHits(this->GetPandora(), &caloHitListW, "WHitsInStitchableCosmic", BLUE));
+
+const PfoList *pPfoList = nullptr;
+(void) PandoraContentApi::GetList(*this, m_pfoListName, pPfoList);
+
+PANDORA_MONITORING_API(VisualizeParticleFlowObjects(this->GetPandora(), pPfoList, "CurrentPfos", AUTO, false, true));
+PANDORA_MONITORING_API(ViewEvent(this->GetPandora()));
+}
+
 #ifdef MONITORING
                 try
                 {
