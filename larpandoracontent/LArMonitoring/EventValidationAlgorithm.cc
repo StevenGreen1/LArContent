@@ -213,7 +213,12 @@ void EventValidationAlgorithm::ProcessOutput(const ValidationInfo &validationInf
         const int isCosmicRay(LArMCParticleHelper::IsCosmicRay(pMCPrimary));
 
         int nMCHitsTPC1(std::numeric_limits<int>::max()), nMCHitsTPC2(std::numeric_limits<int>::max());
-        const int canCosmicBeStitched(isCosmicRay ? this->CanCosmicBeStitched(pMCPrimary, nMCHitsTPC1, nMCHitsTPC2) : 0);
+        float uLowX1(std::numeric_limits<float>::max()), vLowX1(std::numeric_limits<float>::max()), wLowX1(std::numeric_limits<float>::max());
+        float uLowX2(std::numeric_limits<float>::max()), vLowX2(std::numeric_limits<float>::max()), wLowX2(std::numeric_limits<float>::max());
+        float uHighX1(-std::numeric_limits<float>::max()), vHighX1(-std::numeric_limits<float>::max()), wHighX1(-std::numeric_limits<float>::max());
+        float uHighX2(-std::numeric_limits<float>::max()), vHighX2(-std::numeric_limits<float>::max()), wHighX2(-std::numeric_limits<float>::max());
+
+        const int canCosmicBeStitched(isCosmicRay ? this->CanCosmicBeStitched(pMCPrimary, nMCHitsTPC1, nMCHitsTPC2, uLowX1, uHighX1, vLowX1, vHighX1, wLowX1, wHighX1, uLowX2, uHighX2, vLowX2, vHighX2, wLowX2, wHighX2) : 0);
 
 #ifdef MONITORING
         const CartesianVector &targetVertex(LArMCParticleHelper::GetParentMCParticle(pMCPrimary)->GetVertex());
@@ -373,6 +378,18 @@ void EventValidationAlgorithm::ProcessOutput(const ValidationInfo &validationInf
             PANDORA_MONITORING_API(SetTreeVariable(this->GetPandora(), m_treeName.c_str(), "canCosmicBeStitched", canCosmicBeStitched));
             PANDORA_MONITORING_API(SetTreeVariable(this->GetPandora(), m_treeName.c_str(), "nMCHitsTPC1", nMCHitsTPC1));
             PANDORA_MONITORING_API(SetTreeVariable(this->GetPandora(), m_treeName.c_str(), "nMCHitsTPC2", nMCHitsTPC2));
+            PANDORA_MONITORING_API(SetTreeVariable(this->GetPandora(), m_treeName.c_str(), "mcHitsULowX1", uLowX1));
+            PANDORA_MONITORING_API(SetTreeVariable(this->GetPandora(), m_treeName.c_str(), "mcHitsUHighX1", uHighX1));
+            PANDORA_MONITORING_API(SetTreeVariable(this->GetPandora(), m_treeName.c_str(), "mcHitsVLowX1", vLowX1));
+            PANDORA_MONITORING_API(SetTreeVariable(this->GetPandora(), m_treeName.c_str(), "mcHitsVHighX1", vHighX1));
+            PANDORA_MONITORING_API(SetTreeVariable(this->GetPandora(), m_treeName.c_str(), "mcHitsWLowX1", wLowX1));
+            PANDORA_MONITORING_API(SetTreeVariable(this->GetPandora(), m_treeName.c_str(), "mcHitsWHighX1", wHighX1));
+            PANDORA_MONITORING_API(SetTreeVariable(this->GetPandora(), m_treeName.c_str(), "mcHitsULowX2", uLowX2));
+            PANDORA_MONITORING_API(SetTreeVariable(this->GetPandora(), m_treeName.c_str(), "mcHitsUHighX2", uHighX2));
+            PANDORA_MONITORING_API(SetTreeVariable(this->GetPandora(), m_treeName.c_str(), "mcHitsVLowX2", vLowX2));
+            PANDORA_MONITORING_API(SetTreeVariable(this->GetPandora(), m_treeName.c_str(), "mcHitsVHighX2", vHighX2));
+            PANDORA_MONITORING_API(SetTreeVariable(this->GetPandora(), m_treeName.c_str(), "mcHitsWLowX2", wLowX2));
+            PANDORA_MONITORING_API(SetTreeVariable(this->GetPandora(), m_treeName.c_str(), "mcHitsWHighX2", wHighX2));
             PANDORA_MONITORING_API(SetTreeVariable(this->GetPandora(), m_treeName.c_str(), "nTargetPrimaries", nTargetPrimaries));
             PANDORA_MONITORING_API(SetTreeVariable(this->GetPandora(), m_treeName.c_str(), "targetVertexX", targetVertexX));
             PANDORA_MONITORING_API(SetTreeVariable(this->GetPandora(), m_treeName.c_str(), "targetVertexY", targetVertexY));
@@ -688,7 +705,7 @@ bool EventValidationAlgorithm::IsGoodMatch(const CaloHitList &trueHits, const Ca
 
 //------------------------------------------------------------------------------------------------------------------------------------------
 
-int EventValidationAlgorithm::CanCosmicBeStitched(const MCParticle *const pMCParticle, int &nHitsTPC1, int &nHitsTPC2) const
+int EventValidationAlgorithm::CanCosmicBeStitched(const MCParticle *const pMCParticle, int &nHitsTPC1, int &nHitsTPC2, float &uLowX1, float &uHighX1, float &vLowX1, float &vHighX1, float &wLowX1, float &wHighX1, float &uLowX2, float &uHighX2, float &vLowX2, float &vHighX2, float &wLowX2, float &wHighX2) const
 {
     const CaloHitList *pCaloHitList(nullptr);
     PANDORA_RETURN_RESULT_IF(STATUS_CODE_SUCCESS, !=, PandoraContentApi::GetList(*this, m_caloHitListName, pCaloHitList));
@@ -700,52 +717,90 @@ int EventValidationAlgorithm::CanCosmicBeStitched(const MCParticle *const pMCPar
         try
         {
             if (MCParticleHelper::GetMainMCParticle(pCaloHit) == pMCParticle)
+            {
                 mcParticleCaloHitList.push_back(pCaloHit);
+            }
         }
         catch (...) {}
     }
 
-    return this->CountTPCHits(mcParticleCaloHitList, nHitsTPC1, nHitsTPC2);
+    return this->CountTPCHits(mcParticleCaloHitList, nHitsTPC1, nHitsTPC2, uLowX1, uHighX1, vLowX1, vHighX1, wLowX1, wHighX1, uLowX2, uHighX2, vLowX2, vHighX2, wLowX2, wHighX2);
 }
 
 //------------------------------------------------------------------------------------------------------------------------------------------
 
-int EventValidationAlgorithm::CountTPCHits(const CaloHitList &caloHitList, int &nHitsTPC1, int &nHitsTPC2) const
+int EventValidationAlgorithm::CountTPCHits(const CaloHitList &caloHitList, int &nHitsTPC1, int &nHitsTPC2, float &uLowX1, float &uHighX1, float &vLowX1, float &vHighX1, float &wLowX1, float &wHighX1, float &uLowX2, float &uHighX2, float &vLowX2, float &vHighX2, float &wLowX2, float &wHighX2) const
 {
-    typedef std::map<int, int> IntToIntMap;
-    IntToIntMap tpcIDToNHits;
+    typedef std::map<int, CaloHitList> IntToCaloHitMap;
+    IntToCaloHitMap tpcIDToHits;
 
     for (const CaloHit *pCaloHit : caloHitList)
     {
         const LArCaloHit *const pLArCaloHit(dynamic_cast<const LArCaloHit*>(pCaloHit));
         const int volumeId(pLArCaloHit->GetLArTPCVolumeId());
 
-        if (tpcIDToNHits.find(volumeId) == tpcIDToNHits.end())
+        if (tpcIDToHits.find(volumeId) == tpcIDToHits.end())
         {
-            tpcIDToNHits.insert(std::make_pair(volumeId, 1));
+            CaloHitList caloHitList2;
+            caloHitList2.push_back(pCaloHit);
+            tpcIDToHits.insert(std::make_pair(volumeId, caloHitList2));
         }
         else
         {
-            tpcIDToNHits.at(volumeId) += 1;
+            tpcIDToHits.at(volumeId).push_back(pCaloHit);
         }
     }
 
     try
     {
-        if (tpcIDToNHits.size() == 2)
+        if (tpcIDToHits.size() == 2)
         {
             nHitsTPC1 = -std::numeric_limits<int>::max();
             nHitsTPC2 = std::numeric_limits<int>::max();
 
-            for (const auto iter : tpcIDToNHits)
+            bool firstPass(true);
+
+            for (const auto iter : tpcIDToHits)
             {
-                nHitsTPC1 = std::max(nHitsTPC1, iter.second);
-                nHitsTPC2 = std::min(nHitsTPC2, iter.second);
+                nHitsTPC1 = std::max(nHitsTPC1, (int)(iter.second.size()));
+                nHitsTPC2 = std::min(nHitsTPC2, (int)(iter.second.size()));
+
+                CaloHitList uHits, vHits, wHits;
+
+                for (const CaloHit *pCaloHit : iter.second)
+                {
+                    if (pCaloHit->GetHitType() == TPC_VIEW_U)
+                    {
+                        uHits.push_back(pCaloHit);
+                    }
+                    else if (pCaloHit->GetHitType() == TPC_VIEW_V)
+                    {
+                        vHits.push_back(pCaloHit);
+                    }
+                    else if (pCaloHit->GetHitType() == TPC_VIEW_W)
+                    {
+                        wHits.push_back(pCaloHit);
+                    }
+                }
+
+                if (firstPass)
+                {
+                    this->GetCaloHitListSpan(uHits, uLowX1, uHighX1);
+                    this->GetCaloHitListSpan(vHits, vLowX1, vHighX1);
+                    this->GetCaloHitListSpan(wHits, wLowX1, wHighX1);
+                    firstPass = false;
+                }
+                else
+                {
+                    this->GetCaloHitListSpan(uHits, uLowX2, uHighX2);
+                    this->GetCaloHitListSpan(vHits, vLowX2, vHighX2);
+                    this->GetCaloHitListSpan(wHits, wLowX2, wHighX2);
+                }
             }
 
             return 1;
         }
-        else if (tpcIDToNHits.size() < 2)
+        else if (tpcIDToHits.size() < 2)
         {
             return 0;
         }
@@ -765,13 +820,25 @@ int EventValidationAlgorithm::CountTPCHits(const CaloHitList &caloHitList, int &
 
 //------------------------------------------------------------------------------------------------------------------------------------------
 
+void EventValidationAlgorithm::GetCaloHitListSpan(const CaloHitList &caloHitList, float &lowX, float &highX) const
+{
+    for (const CaloHit *pCaloHit : caloHitList)
+    {
+        lowX = std::min(lowX, pCaloHit->GetPositionVector().GetX());
+        highX = std::max(highX, pCaloHit->GetPositionVector().GetX());
+    }
+}
+
+//------------------------------------------------------------------------------------------------------------------------------------------
+
 int EventValidationAlgorithm::HasCosmicBeStitched(const pandora::Pfo *const pPfo, int &nHitsTPC1, int &nHitsTPC2) const
 {
     CaloHitList caloHitList;
     LArPfoHelper::GetCaloHits(pPfo, TPC_VIEW_U, caloHitList);
     LArPfoHelper::GetCaloHits(pPfo, TPC_VIEW_V, caloHitList);
     LArPfoHelper::GetCaloHits(pPfo, TPC_VIEW_W, caloHitList);
-    return this->CountTPCHits(caloHitList, nHitsTPC1, nHitsTPC2);
+    float a1(0.f), a2(0.f), a3(0.f), a4(0.f), a5(0.f), a6(0.f), b1(0.f), b2(0.f), b3(0.f), b4(0.f), b5(0.f), b6(0.f);
+    return this->CountTPCHits(caloHitList, nHitsTPC1, nHitsTPC2, a1, a2, a3, a4, a5, a6, b1, b2, b3, b4, b5, b6);
 }
 
 //------------------------------------------------------------------------------------------------------------------------------------------

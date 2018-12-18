@@ -219,11 +219,13 @@ private:
      */
     bool IsGoodMatch(const pandora::CaloHitList &trueHits, const pandora::CaloHitList &recoHits, const pandora::CaloHitList &sharedHits) const;
 
-    int CanCosmicBeStitched(const pandora::MCParticle *const pMCParticle, int &nHitsTPC1, int &nHitsTPC2) const;
+    int CanCosmicBeStitched(const pandora::MCParticle *const pMCParticle, int &nHitsTPC1, int &nHitsTPC2, float &uLowX1, float &uHighX1, float &vLowX1, float &vHighX1, float &wLowX1, float &wHighX1, float &uLowX2, float &uHighX2, float &vLowX2, float &vHighX2, float &wLowX2, float &wHighX2) const;
+
+    void GetCaloHitListSpan(const pandora::CaloHitList &caloHitList, float &lowX, float &highX) const;
 
     int HasCosmicBeStitched(const pandora::Pfo *const pPfo, int &nHitsTPC1, int &nHitsTPC2) const;
 
-    int CountTPCHits(const pandora::CaloHitList &caloHitList, int &nHitsTPC1, int &nHitsTPC2) const;
+    int CountTPCHits(const pandora::CaloHitList &caloHitList, int &nHitsTPC1, int &nHitsTPC2, float &uLowX1, float &uHighX1, float &vLowX1, float &vHighX1, float &wLowX1, float &wHighX1, float &uLowX2, float &uHighX2, float &vLowX2, float &vHighX2, float &wLowX2, float &wHighX2) const;
 
 
     pandora::StatusCode ReadSettings(const pandora::TiXmlHandle xmlHandle);
