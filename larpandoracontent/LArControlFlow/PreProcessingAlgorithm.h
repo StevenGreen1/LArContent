@@ -64,6 +64,7 @@ private:
     float               m_searchRegion1D;                   ///< Search region, applied to each dimension, for look-up from kd-trees
 
     bool                m_onlyAvailableCaloHits;            ///< Whether to only include available calo hits
+    bool                m_vetoGapHits;                      ///< Whether to veto hits if they appear in a detector gap
     std::string         m_inputCaloHitListName;             ///< The input calo hit list name
     std::string         m_outputCaloHitListNameU;           ///< The output calo hit list name for TPC_VIEW_U hits
     std::string         m_outputCaloHitListNameV;           ///< The output calo hit list name for TPC_VIEW_V hits

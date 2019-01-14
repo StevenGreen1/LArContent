@@ -11,6 +11,7 @@
 #include "larpandoracontent/LArControlFlow/PreProcessingAlgorithm.h"
 
 #include "larpandoracontent/LArHelpers/LArClusterHelper.h"
+#include "larpandoracontent/LArHelpers/LArGeometryHelper.h"
 
 #include "larpandoracontent/LArUtility/KDTreeLinkerAlgoT.h"
 
@@ -25,6 +26,7 @@ PreProcessingAlgorithm::PreProcessingAlgorithm() :
     m_maxCellLengthScale(3.f),
     m_searchRegion1D(0.1f),
     m_onlyAvailableCaloHits(true),
+    m_vetoGapHits(false),
     m_inputCaloHitListName("Input")
 {
 }
@@ -90,6 +92,9 @@ void PreProcessingAlgorithm::ProcessCaloHits()
             continue;
 
         if (pCaloHit->GetMipEquivalentEnergy() < m_mipEquivalentCut)
+            continue;
+
+        if (m_vetoGapHits && LArGeometryHelper::IsInGap(this->GetPandora(), pCaloHit->GetPositionVector(), pCaloHit->GetHitType(), std::numeric_limits<float>::epsilon()))
             continue;
 
         if (pCaloHit->GetInputEnergy() < std::numeric_limits<float>::epsilon())
@@ -219,6 +224,9 @@ StatusCode PreProcessingAlgorithm::ReadSettings(const TiXmlHandle xmlHandle)
 
     PANDORA_RETURN_RESULT_IF_AND_IF(STATUS_CODE_SUCCESS, STATUS_CODE_NOT_FOUND, !=, XmlHelper::ReadValue(xmlHandle,
         "OnlyAvailableCaloHits", m_onlyAvailableCaloHits));
+
+    PANDORA_RETURN_RESULT_IF_AND_IF(STATUS_CODE_SUCCESS, STATUS_CODE_NOT_FOUND, !=, XmlHelper::ReadValue(xmlHandle,
+        "VetoGapHits", m_vetoGapHits));
 
     PANDORA_RETURN_RESULT_IF_AND_IF(STATUS_CODE_SUCCESS, STATUS_CODE_NOT_FOUND, !=, XmlHelper::ReadValue(xmlHandle,
         "InputCaloHitListName", m_inputCaloHitListName));
