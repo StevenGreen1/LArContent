@@ -48,7 +48,7 @@ private:
      *
      *  @param pCaloHit target calo hit
      */
-    bool IsHitInLineGap(const CaloHit *const pCaloHit);
+    bool IsHitInLineGap(const pandora::CaloHit *const pCaloHit);
 
     /**
      *  @brief Clean up the input CaloHitList

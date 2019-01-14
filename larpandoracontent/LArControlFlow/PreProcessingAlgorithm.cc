@@ -157,11 +157,13 @@ void PreProcessingAlgorithm::ProcessCaloHits()
 
 bool PreProcessingAlgorithm::IsHitInLineGap(const CaloHit *const pCaloHit)
 {
-    for (const DetectorGap *const pGap : pandora.GetGeometry()->GetDetectorGapList())
+    for (const DetectorGap *const pGap : this->GetPandora().GetGeometry()->GetDetectorGapList())
     {
         const LineGap *const pLineGap(dynamic_cast<const LineGap*>(pGap));
 
-        if (pLineGap && pLineGap->IsInGap(pCaloHit->GetPositionVector(), pCaloHit->GetHitType(), std::numeric_limits<float>::epsilon()))
+        if (pLineGap && pLineGap->IsInGap(pCaloHit->GetPositionVector(), pCaloHit->GetHitType(), std::numeric_limits<float>::epsilon())
+            && (pLineGap->GetLineGapType() == TPC_WIRE_GAP_VIEW_U || pLineGap->GetLineGapType() == TPC_WIRE_GAP_VIEW_V ||
+            pLineGap->GetLineGapType() == TPC_WIRE_GAP_VIEW_W))
             return true;
     }
 
