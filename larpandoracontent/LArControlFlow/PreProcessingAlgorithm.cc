@@ -94,7 +94,7 @@ void PreProcessingAlgorithm::ProcessCaloHits()
         if (pCaloHit->GetMipEquivalentEnergy() < m_mipEquivalentCut)
             continue;
 
-        if (m_vetoGapHits && LArGeometryHelper::IsInGap(this->GetPandora(), pCaloHit->GetPositionVector(), pCaloHit->GetHitType(), std::numeric_limits<float>::epsilon()))
+        if (m_vetoGapHits && this->IsHitInLineGap(pCaloHit))
             continue;
 
         if (pCaloHit->GetInputEnergy() < std::numeric_limits<float>::epsilon())
@@ -151,6 +151,21 @@ void PreProcessingAlgorithm::ProcessCaloHits()
 
     if (!filteredCaloHitListW.empty() && !m_outputCaloHitListNameW.empty())
         PANDORA_THROW_RESULT_IF(STATUS_CODE_SUCCESS, !=, PandoraContentApi::SaveList(*this, filteredCaloHitListW, m_outputCaloHitListNameW));
+}
+
+//------------------------------------------------------------------------------------------------------------------------------------------
+
+bool PreProcessingAlgorithm::IsHitInLineGap(const CaloHit *const pCaloHit)
+{
+    for (const DetectorGap *const pGap : pandora.GetGeometry()->GetDetectorGapList())
+    {
+        const LineGap *const pLineGap(dynamic_cast<const LineGap*>(pGap));
+
+        if (pLineGap && pLineGap->IsInGap(pCaloHit->GetPositionVector(), pCaloHit->GetHitType(), std::numeric_limits<float>::epsilon()))
+            return true;
+    }
+
+    return false;
 }
 
 //------------------------------------------------------------------------------------------------------------------------------------------

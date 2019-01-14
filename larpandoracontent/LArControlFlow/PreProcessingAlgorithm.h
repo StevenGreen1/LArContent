@@ -44,6 +44,13 @@ private:
     void ProcessCaloHits();
 
     /**
+     *  @brief Is the target calo hit in a detector line gap
+     *
+     *  @param pCaloHit target calo hit
+     */
+    bool IsHitInLineGap(const CaloHit *const pCaloHit);
+
+    /**
      *  @brief Clean up the input CaloHitList
      *
      *  @param inputList the input CaloHitList
