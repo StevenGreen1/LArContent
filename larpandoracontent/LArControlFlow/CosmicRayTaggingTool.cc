@@ -28,6 +28,7 @@ CosmicRayTaggingTool::CosmicRayTaggingTool() :
     m_minimumHits(15),
     m_inTimeMargin(5.f),
     m_inTimeMaxX0(1.f),
+    m_tpcEdgeToleranceX(0.f),
     m_marginY(20.f),
     m_marginZ(10.f),
     m_maxNeutrinoCosTheta(0.2f),
@@ -98,8 +99,8 @@ void CosmicRayTaggingTool::FindAmbiguousPfos(const PfoList &parentCosmicRayPfos,
         parentMaxZ = std::max(parentMaxZ, pLArTPC->GetCenterZ() + 0.5f * pLArTPC->GetWidthZ());
     }
 
-    m_face_Xa = parentMinX;
-    m_face_Xc = parentMaxX;
+    m_face_Xa = parentMinX - m_tpcEdgeToleranceX;
+    m_face_Xc = parentMaxX + m_tpcEdgeToleranceX;
     m_face_Yb = parentMinY;
     m_face_Yt = parentMaxY;
     m_face_Zu = parentMinZ;
@@ -576,6 +577,9 @@ StatusCode CosmicRayTaggingTool::ReadSettings(const TiXmlHandle xmlHandle)
 
     PANDORA_RETURN_RESULT_IF_AND_IF(STATUS_CODE_SUCCESS, STATUS_CODE_NOT_FOUND, !=, XmlHelper::ReadValue(xmlHandle,
         "InTimeMaxX0", m_inTimeMaxX0));
+
+    PANDORA_RETURN_RESULT_IF_AND_IF(STATUS_CODE_SUCCESS, STATUS_CODE_NOT_FOUND, !=, XmlHelper::ReadValue(xmlHandle,
+        "TPCEdgeToleranceX", m_tpcEdgeToleranceX));
 
     PANDORA_RETURN_RESULT_IF_AND_IF(STATUS_CODE_SUCCESS, STATUS_CODE_NOT_FOUND, !=, XmlHelper::ReadValue(xmlHandle,
         "MarginY", m_marginY));

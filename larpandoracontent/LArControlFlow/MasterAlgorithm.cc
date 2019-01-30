@@ -49,7 +49,8 @@ MasterAlgorithm::MasterAlgorithm() :
     m_fullWidthCRWorkerWireGaps(true),
     m_passMCParticlesToWorkerInstances(false),
     m_filePathEnvironmentVariable("FW_SEARCH_PATH"),
-    m_inTimeMaxX0(1.f)
+    m_inTimeMaxX0(1.f),
+    m_tpcEdgeToleranceX(0.f)
 {
 }
 
@@ -277,8 +278,8 @@ StatusCode MasterAlgorithm::GetVolumeIdToHitListMap(VolumeIdToHitListMap &volume
         LArTPCHitList &larTPCHitList(volumeIdToHitListMap[volumeId]);
         larTPCHitList.m_allHitList.push_back(pCaloHit);
 
-        if (((pCaloHit->GetPositionVector().GetX() >= (pLArTPC->GetCenterX() - 0.5f * pLArTPC->GetWidthX())) &&
-            (pCaloHit->GetPositionVector().GetX() <= (pLArTPC->GetCenterX() + 0.5f * pLArTPC->GetWidthX()))))
+        if (((pCaloHit->GetPositionVector().GetX() >= (pLArTPC->GetCenterX() - 0.5f * pLArTPC->GetWidthX() - m_tpcEdgeToleranceX)) &&
+            (pCaloHit->GetPositionVector().GetX() <= (pLArTPC->GetCenterX() + 0.5f * pLArTPC->GetWidthX() + m_tpcEdgeToleranceX))))
         {
             larTPCHitList.m_truncatedHitList.push_back(pCaloHit);
         }
@@ -1142,6 +1143,7 @@ StatusCode MasterAlgorithm::ReadSettings(const TiXmlHandle xmlHandle)
     PANDORA_RETURN_RESULT_IF(STATUS_CODE_SUCCESS, !=, XmlHelper::ReadValue(xmlHandle, "RecreatedClusterListName", m_recreatedClusterListName));
     PANDORA_RETURN_RESULT_IF(STATUS_CODE_SUCCESS, !=, XmlHelper::ReadValue(xmlHandle, "RecreatedVertexListName", m_recreatedVertexListName));
     PANDORA_RETURN_RESULT_IF_AND_IF(STATUS_CODE_SUCCESS, STATUS_CODE_NOT_FOUND, !=, XmlHelper::ReadValue(xmlHandle, "InTimeMaxX0", m_inTimeMaxX0));
+    PANDORA_RETURN_RESULT_IF_AND_IF(STATUS_CODE_SUCCESS, STATUS_CODE_NOT_FOUND, !=, XmlHelper::ReadValue(xmlHandle, "TPCEdgeToleranceX", m_tpcEdgeToleranceX));
 
     return STATUS_CODE_SUCCESS;
 }

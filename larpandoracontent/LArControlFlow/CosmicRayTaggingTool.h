@@ -201,6 +201,7 @@ private:
 
     float           m_inTimeMargin;             ///< The maximum distance outside of the physical detector volume that a Pfo may be to still be considered in time
     float           m_inTimeMaxX0;              ///< The maximum pfo x0 (determined from shifted vertex) to allow pfo to still be considered in time
+    float           m_tpcEdgeToleranceX;        ///< Tolerance in X that is used when truncating out of time hits
     float           m_marginY;                  ///< The minimum distance from a detector Y-face for a Pfo to be associated
     float           m_marginZ;                  ///< The minimum distance from a detector Z-face for a Pfo to be associated
     float           m_maxNeutrinoCosTheta;      ///< The maximum cos(theta) that a Pfo can have to be classified as a likely neutrino

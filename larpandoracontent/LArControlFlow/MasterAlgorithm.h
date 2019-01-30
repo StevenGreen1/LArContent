@@ -336,6 +336,7 @@ private:
     std::string                 m_recreatedVertexListName;          ///< The output recreated vertex list name
 
     float                       m_inTimeMaxX0;                      ///< Cut on X0 to determine whether particle is clear cosmic ray
+    float                       m_tpcEdgeToleranceX;                ///< Tolerance in X that is used when truncating out of time hits
 };
 
 //------------------------------------------------------------------------------------------------------------------------------------------
