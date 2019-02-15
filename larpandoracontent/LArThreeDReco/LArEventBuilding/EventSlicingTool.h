@@ -47,6 +47,7 @@ private:
      *  @param  sliceList the slice list to receive the single new slice
      */
     void CopyAllHitsToSingleSlice(const pandora::Algorithm *const pAlgorithm, const SlicingAlgorithm::HitTypeToNameMap &caloHitListNames,
+        const pandora::ClusterList &trackClusters3D, const pandora::ClusterList &showerClusters3D,
         SlicingAlgorithm::SliceList &sliceList) const;
 
     typedef std::unordered_map<const pandora::Cluster*, const pandora::ParticleFlowObject*> ClusterToPfoMap;

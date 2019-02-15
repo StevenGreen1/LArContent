@@ -33,6 +33,7 @@ public:
         pandora::CaloHitList    m_caloHitListU;                     ///< The u calo hit list
         pandora::CaloHitList    m_caloHitListV;                     ///< The v calo hit list
         pandora::CaloHitList    m_caloHitListW;                     ///< The w calo hit list
+        pandora::CaloHitList    m_caloHitList3D;                    ///< The 3D calo hit list
     };
 
     typedef std::vector<Slice> SliceList;
