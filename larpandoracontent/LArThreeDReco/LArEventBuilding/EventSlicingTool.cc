@@ -78,7 +78,7 @@ void EventSlicingTool::RunSlicing(const Algorithm *const pAlgorithm, const HitTy
 
     if (clusterSliceList.size() < 2)
     {
-        return this->CopyAllHitsToSingleSlice(pAlgorithm, caloHitListNames, sliceList);
+        return this->CopyAllHitsToSingleSlice(pAlgorithm, caloHitListNames, trackClusters3D, showerClusters3D, sliceList);
     }
     else
     {
@@ -97,7 +97,8 @@ void EventSlicingTool::RunSlicing(const Algorithm *const pAlgorithm, const HitTy
 
 //------------------------------------------------------------------------------------------------------------------------------------------
 
-void EventSlicingTool::CopyAllHitsToSingleSlice(const Algorithm *const pAlgorithm, const HitTypeToNameMap &caloHitListNames, SliceList &sliceList) const
+void EventSlicingTool::CopyAllHitsToSingleSlice(const Algorithm *const pAlgorithm, const HitTypeToNameMap &caloHitListNames,
+    const ClusterList &trackClusters3D, const ClusterList &showerClusters3D, SliceList &sliceList) const
 {
     if (!sliceList.empty())
         throw StatusCodeException(STATUS_CODE_INVALID_PARAMETER);
@@ -122,6 +123,21 @@ void EventSlicingTool::CopyAllHitsToSingleSlice(const Algorithm *const pAlgorith
         if (pCaloHitListU) slice.m_caloHitListU = *pCaloHitListU;
         if (pCaloHitListV) slice.m_caloHitListV = *pCaloHitListV;
         if (pCaloHitListW) slice.m_caloHitListW = *pCaloHitListW;
+
+        ClusterVector clusters3D(trackClusters3D.begin(), trackClusters3D.end());
+        clusters3D.insert(clusters3D.end(), showerClusters3D.begin(), showerClusters3D.end());
+
+        for (const Cluster *const pCluster : clusters3D)
+        {
+            const HitType hitType(LArClusterHelper::GetClusterHitType(pCluster));
+
+            if (TPC_3D != hitType)
+                throw StatusCodeException(STATUS_CODE_INVALID_PARAMETER);
+
+            pCluster->GetOrderedCaloHitList().FillCaloHitList(slice.m_caloHitList3D);
+            slice.m_caloHitList3D.insert(slice.m_caloHitList3D.end(), pCluster->GetIsolatedCaloHitList().begin(),
+                pCluster->GetIsolatedCaloHitList().end());
+        }
     }
 }
 
@@ -421,22 +437,23 @@ void EventSlicingTool::CopyPfoHitsToSlices(const ClusterToSliceIndexMap &cluster
         const Pfo *const pPfo(clusterToPfoMap.at(pCluster3D));
         Slice &slice(sliceList.at(index));
 
-        ClusterList clusters2D;
-        LArPfoHelper::GetTwoDClusterList(pPfo, clusters2D);
+        ClusterList clusters;
+        LArPfoHelper::GetTwoDClusterList(pPfo, clusters);
+        LArPfoHelper::GetThreeDClusterList(pPfo, clusters);
 
-        for (const Cluster *const pCluster2D : clusters2D)
+        for (const Cluster *const pCluster : clusters)
         {
-            const HitType hitType(LArClusterHelper::GetClusterHitType(pCluster2D));
+            const HitType hitType(LArClusterHelper::GetClusterHitType(pCluster));
 
-            if ((TPC_VIEW_U != hitType) && (TPC_VIEW_V != hitType) && (TPC_VIEW_W != hitType))
+            if ((TPC_VIEW_U != hitType) && (TPC_VIEW_V != hitType) && (TPC_VIEW_W != hitType) && (TPC_3D != hitType))
                 throw StatusCodeException(STATUS_CODE_INVALID_PARAMETER);
 
-            CaloHitList &targetList((TPC_VIEW_U == hitType) ? slice.m_caloHitListU : (TPC_VIEW_V == hitType) ? slice.m_caloHitListV : slice.m_caloHitListW);
+            CaloHitList &targetList((TPC_VIEW_U == hitType) ? slice.m_caloHitListU : (TPC_VIEW_V == hitType) ? slice.m_caloHitListV : (TPC_VIEW_W == hitType) ? slice.m_caloHitListW : slice.m_caloHitList3D);
 
-            pCluster2D->GetOrderedCaloHitList().FillCaloHitList(targetList);
-            targetList.insert(targetList.end(), pCluster2D->GetIsolatedCaloHitList().begin(), pCluster2D->GetIsolatedCaloHitList().end());
+            pCluster->GetOrderedCaloHitList().FillCaloHitList(targetList);
+            targetList.insert(targetList.end(), pCluster->GetIsolatedCaloHitList().begin(), pCluster->GetIsolatedCaloHitList().end());
 
-            if (!assignedClusters.insert(pCluster2D).second)
+            if (!assignedClusters.insert(pCluster).second)
                 throw StatusCodeException(STATUS_CODE_ALREADY_PRESENT);
         }
     }

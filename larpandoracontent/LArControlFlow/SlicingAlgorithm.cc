@@ -43,16 +43,18 @@ StatusCode SlicingAlgorithm::Run()
 
     for (const Slice &slice : sliceList)
     {
-        const Cluster *pClusterU(nullptr), *pClusterV(nullptr), *pClusterW(nullptr);
-        PandoraContentApi::Cluster::Parameters clusterParametersU, clusterParametersV, clusterParametersW;
+        const Cluster *pClusterU(nullptr), *pClusterV(nullptr), *pClusterW(nullptr), *pCluster3D(nullptr);
+        PandoraContentApi::Cluster::Parameters clusterParametersU, clusterParametersV, clusterParametersW, clusterParameters3D;
         clusterParametersU.m_caloHitList = slice.m_caloHitListU;
         clusterParametersV.m_caloHitList = slice.m_caloHitListV;
         clusterParametersW.m_caloHitList = slice.m_caloHitListW;
+        clusterParameters3D.m_caloHitList = slice.m_caloHitList3D;
         if (!clusterParametersU.m_caloHitList.empty()) PANDORA_RETURN_RESULT_IF(STATUS_CODE_SUCCESS, !=, PandoraContentApi::Cluster::Create(*this, clusterParametersU, pClusterU));
         if (!clusterParametersV.m_caloHitList.empty()) PANDORA_RETURN_RESULT_IF(STATUS_CODE_SUCCESS, !=, PandoraContentApi::Cluster::Create(*this, clusterParametersV, pClusterV));
         if (!clusterParametersW.m_caloHitList.empty()) PANDORA_RETURN_RESULT_IF(STATUS_CODE_SUCCESS, !=, PandoraContentApi::Cluster::Create(*this, clusterParametersW, pClusterW));
+        if (!clusterParameters3D.m_caloHitList.empty()) PANDORA_RETURN_RESULT_IF(STATUS_CODE_SUCCESS, !=, PandoraContentApi::Cluster::Create(*this, clusterParameters3D, pCluster3D));
 
-        if (!pClusterU && !pClusterV && !pClusterW)
+        if (!pClusterU && !pClusterV && !pClusterW && !pCluster3D)
             throw StatusCodeException(STATUS_CODE_FAILURE);
 
         const Pfo *pSlicePfo(nullptr);
@@ -60,6 +62,7 @@ StatusCode SlicingAlgorithm::Run()
         if (pClusterU) pfoParameters.m_clusterList.push_back(pClusterU);
         if (pClusterV) pfoParameters.m_clusterList.push_back(pClusterV);
         if (pClusterW) pfoParameters.m_clusterList.push_back(pClusterW);
+        if (pCluster3D) pfoParameters.m_clusterList.push_back(pCluster3D);
         pfoParameters.m_charge = 0;
         pfoParameters.m_energy = 0.f;
         pfoParameters.m_mass = 0.f;
