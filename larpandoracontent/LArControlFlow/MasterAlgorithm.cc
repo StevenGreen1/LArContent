@@ -184,6 +184,43 @@ StatusCode MasterAlgorithm::Run()
     SliceVector sliceVector;
     PANDORA_RETURN_RESULT_IF(STATUS_CODE_SUCCESS, !=, this->RunSlicing(volumeIdToHitListMap, sliceVector));
 
+int n3DHits(0);
+
+    for (const CaloHitList &sliceHits : sliceVector)
+    {
+        CaloHitList uHits, vHits, wHits, hits3D;
+
+        for (const CaloHit *pCaloHit : sliceHits)
+        {
+            if (pCaloHit->GetHitType() == TPC_VIEW_U)
+            {
+                uHits.push_back(pCaloHit);
+            }
+            else if (pCaloHit->GetHitType() == TPC_VIEW_V)
+            {
+                vHits.push_back(pCaloHit);
+            }
+            else if (pCaloHit->GetHitType() == TPC_VIEW_W)
+            {
+                wHits.push_back(pCaloHit);
+            }
+            else if (pCaloHit->GetHitType() == TPC_3D)
+            {
+                n3DHits++;
+                hits3D.push_back(pCaloHit);
+            }
+       }
+std::cout << "Number of 3D hits in this slice : " << uHits.size() << ", " << vHits.size() << ", " << wHits.size() << ", " << hits3D.size() << std::endl;
+        PANDORA_MONITORING_API(SetEveDisplayParameters(this->GetPandora(), true, DETECTOR_VIEW_XZ, -1.f, 1.f, 1.f));
+        PANDORA_MONITORING_API(VisualizeCaloHits(this->GetPandora(), &uHits, "UHits", RED));
+        PANDORA_MONITORING_API(VisualizeCaloHits(this->GetPandora(), &vHits, "VHits", GREEN));
+        PANDORA_MONITORING_API(VisualizeCaloHits(this->GetPandora(), &wHits, "WHits", BLUE));
+        PANDORA_MONITORING_API(VisualizeCaloHits(this->GetPandora(), &hits3D, "3DHits", BLACK));
+        PANDORA_MONITORING_API(ViewEvent(this->GetPandora()));
+    }
+
+std::cout << "Number of 3D hits in slices is : " << n3DHits << std::endl;
+
     if (m_shouldRunNeutrinoRecoOption || m_shouldRunCosmicRecoOption)
     {
         SliceHypotheses nuSliceHypotheses, crSliceHypotheses;
