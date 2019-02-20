@@ -10,6 +10,7 @@ set( subdir_list LArCheating
 		 LArPlugins
 		 LArThreeDReco
 		 LArThreeDReco/LArCosmicRay
+		 LArThreeDReco/LArDeepLearning
 		 LArThreeDReco/LArEventBuilding
 		 LArThreeDReco/LArHitCreation
 		 LArThreeDReco/LArLongitudinalTrackMatching
