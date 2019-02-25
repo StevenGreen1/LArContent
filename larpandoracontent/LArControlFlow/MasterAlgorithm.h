@@ -296,6 +296,8 @@ private:
     pandora::StatusCode ReadExternalSettings(const ExternalSteeringParameters *const pExternalParameters, const pandora::InputBool inputBool,
         const pandora::TiXmlHandle xmlHandle, const std::string &xmlTag, bool &outputBool);
 
+    int                         m_eventNumber;                      ///< The event number
+
     bool                        m_workerInstancesInitialized;       ///< Whether all worker instances have been initialized
 
     bool                        m_shouldRunAllHitsCosmicReco;       ///< Whether to run all hits cosmic-ray reconstruction
@@ -328,6 +330,7 @@ private:
     std::string                 m_crSettingsFile;                   ///< The cosmic-ray reconstruction settings file
     std::string                 m_nuSettingsFile;                   ///< The neutrino reconstruction settings file
     std::string                 m_slicingSettingsFile;              ///< The slicing settings file
+    std::string                 m_sliceHitInformationFile;          ///< The output filename containing slice information
 
     std::string                 m_inputMCParticleListName;          ///< The input mc particle list name
     std::string                 m_inputHitListName;                 ///< The input hit list name

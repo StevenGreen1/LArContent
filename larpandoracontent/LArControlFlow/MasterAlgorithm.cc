@@ -14,6 +14,8 @@
 
 #include "larpandoracontent/LArControlFlow/MasterAlgorithm.h"
 
+#include "larpandoracontent/LArDeepLearning/LArSliceAnalysis.h"
+
 #include "larpandoracontent/LArHelpers/LArClusterHelper.h"
 #include "larpandoracontent/LArHelpers/LArFileHelper.h"
 #include "larpandoracontent/LArHelpers/LArMCParticleHelper.h"
@@ -34,6 +36,7 @@ namespace lar_content
 {
 
 MasterAlgorithm::MasterAlgorithm() :
+    m_eventNumber(0),
     m_workerInstancesInitialized(false),
     m_shouldRunAllHitsCosmicReco(true),
     m_shouldRunStitching(true),
@@ -151,6 +154,8 @@ void MasterAlgorithm::StitchPfos(const ParticleFlowObject *const pPfoToEnlarge, 
 
 StatusCode MasterAlgorithm::Run()
 {
+    m_eventNumber++;
+
     PANDORA_RETURN_RESULT_IF(STATUS_CODE_SUCCESS, !=, this->Reset());
 
     if (!m_workerInstancesInitialized)
@@ -183,6 +188,9 @@ StatusCode MasterAlgorithm::Run()
 
     SliceVector sliceVector;
     PANDORA_RETURN_RESULT_IF(STATUS_CODE_SUCCESS, !=, this->RunSlicing(volumeIdToHitListMap, sliceVector));
+
+    SliceAnalysis sliceAnalysis(m_sliceHitInformationFile);
+    sliceAnalysis.ProcessSlice(sliceVector, m_eventNumber);
 
     if (m_shouldRunNeutrinoRecoOption || m_shouldRunCosmicRecoOption)
     {
@@ -1153,6 +1161,9 @@ StatusCode MasterAlgorithm::ReadSettings(const TiXmlHandle xmlHandle)
     m_crSettingsFile = LArFileHelper::FindFileInPath(m_crSettingsFile, m_filePathEnvironmentVariable);
     m_nuSettingsFile = LArFileHelper::FindFileInPath(m_nuSettingsFile, m_filePathEnvironmentVariable);
     m_slicingSettingsFile = LArFileHelper::FindFileInPath(m_slicingSettingsFile, m_filePathEnvironmentVariable);
+
+    PANDORA_RETURN_RESULT_IF_AND_IF(STATUS_CODE_SUCCESS, STATUS_CODE_NOT_FOUND, !=, XmlHelper::ReadValue(xmlHandle,
+        "SlicingHitInformationFile", m_sliceHitInformationFile));
 
     if (m_passMCParticlesToWorkerInstances)
     {
