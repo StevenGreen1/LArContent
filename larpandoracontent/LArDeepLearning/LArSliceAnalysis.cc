@@ -120,6 +120,7 @@ void SliceAnalysis::WriteHitList(const int eventNumber, const int sliceCounter, 
     for (const CaloHit *pCaloHit : caloHitList)
     {
         const CaloHit *pCaloHitInMaster(static_cast<const CaloHit*>(pCaloHit->GetParentAddress()));
+        int pdg(-1);
 
         if (hitType == TPC_3D)
             pCaloHitInMaster = static_cast<const CaloHit*>(pCaloHitInMaster->GetParentAddress());
@@ -127,6 +128,7 @@ void SliceAnalysis::WriteHitList(const int eventNumber, const int sliceCounter, 
         try
         {
             const MCParticle *const pMCParticle(MCParticleHelper::GetMainMCParticle(pCaloHitInMaster));
+            pdg = pMCParticle->GetParticleId();
 
             // ATTN: All MCParticles, not just primaries
             if (mcParticles.find(pMCParticle) == mcParticles.end())
@@ -147,6 +149,7 @@ void SliceAnalysis::WriteHitList(const int eventNumber, const int sliceCounter, 
         featureVector.push_back(static_cast<double>(pCaloHit->GetPositionVector().GetX()));
         featureVector.push_back(static_cast<double>(pCaloHit->GetPositionVector().GetY()));
         featureVector.push_back(static_cast<double>(pCaloHit->GetPositionVector().GetZ()));
+        featureVector.push_back(static_cast<double>(pdg));
     }
 
     int nTargetTrks(0), nTargetShws(0);
