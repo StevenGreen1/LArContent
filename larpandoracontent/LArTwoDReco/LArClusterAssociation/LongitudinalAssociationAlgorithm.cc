@@ -63,7 +63,21 @@ void LongitudinalAssociationAlgorithm::PopulateClusterAssociationMap(const Clust
             if (pInnerCluster == pOuterCluster)
                 continue;
 
-            if (!this->AreClustersAssociated(pInnerCluster, pOuterCluster))
+            bool areClustersAssociated(this->AreClustersAssociated(pInnerCluster, pOuterCluster));
+
+            std::cout << "areClustersAssociated : " << areClustersAssociated << std::endl;
+
+            PANDORA_MONITORING_API(SetEveDisplayParameters(this->GetPandora(), true, DETECTOR_VIEW_XZ, -1.f, 1.f, 1.f));
+
+            ClusterList innerCluster, outerCluster;
+            innerCluster.push_back(pInnerCluster);
+            outerCluster.push_back(pOuterCluster);
+
+            PANDORA_MONITORING_API(VisualizeClusters(this->GetPandora(), &innerCluster, "InnerCluster", RED, false));
+            PANDORA_MONITORING_API(VisualizeClusters(this->GetPandora(), &outerCluster, "OuterCluster", BLUE, false));
+            PANDORA_MONITORING_API(ViewEvent(this->GetPandora()));
+
+            if (!areClustersAssociated)
                 continue;
 
             clusterAssociationMap[pInnerCluster].m_forwardAssociations.insert(pOuterCluster);
@@ -99,18 +113,21 @@ bool LongitudinalAssociationAlgorithm::AreClustersAssociated(const Cluster *cons
     if ((pOuterCluster->GetInnerPseudoLayer() < pInnerCluster->GetInnerPseudoLayer() + 3) ||
         (pInnerCluster->GetOuterPseudoLayer() + 3 > pOuterCluster->GetOuterPseudoLayer()))
     {
+std::cout << "1" << std::endl;
         return false;
     }
 
     if ((pInnerCluster->GetOuterPseudoLayer() > pOuterCluster->GetInnerPseudoLayer() + 1) ||
         (pOuterCluster->GetInnerPseudoLayer() > pInnerCluster->GetOuterPseudoLayer() + m_maxGapLayers))
     {
+std::cout << "2" << std::endl;
         return false;
     }
 
     if ((2 * pInnerCluster->GetOuterPseudoLayer() < pOuterCluster->GetInnerPseudoLayer() + pInnerCluster->GetInnerPseudoLayer()) ||
         (pInnerCluster->GetOuterPseudoLayer() + pOuterCluster->GetOuterPseudoLayer() < 2 * pOuterCluster->GetInnerPseudoLayer()))
     {
+std::cout << "3" << std::endl;
         return false;
     }
 
@@ -118,15 +135,22 @@ bool LongitudinalAssociationAlgorithm::AreClustersAssociated(const Cluster *cons
     const CartesianVector outerStartCentroid(pOuterCluster->GetCentroid(pOuterCluster->GetInnerPseudoLayer()));
 
     if ((innerEndCentroid - outerStartCentroid).GetMagnitudeSquared() > m_maxGapDistanceSquared)
+    {
+std::cout << "4" << std::endl;
         return false;
+    }
 
     ClusterFitResult innerEndFit, outerStartFit;
     PANDORA_THROW_RESULT_IF(STATUS_CODE_SUCCESS, !=, ClusterFitHelper::FitEnd(pInnerCluster, m_fitLayers, innerEndFit));
     PANDORA_THROW_RESULT_IF(STATUS_CODE_SUCCESS, !=, ClusterFitHelper::FitStart(pOuterCluster, m_fitLayers, outerStartFit));
 
     if (this->AreClustersAssociated(innerEndCentroid, outerStartCentroid, innerEndFit, outerStartFit))
+    {
+std::cout << "5" << std::endl;
         return true;
+    }
 
+std::cout << "6" << std::endl;
     return false;
 }
 
