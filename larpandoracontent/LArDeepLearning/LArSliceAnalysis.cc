@@ -115,7 +115,10 @@ void SliceAnalysis::WriteHitList(const int eventNumber, const int sliceCounter, 
     featureVector.push_back(static_cast<double>(sliceCounter));
     featureVector.push_back(static_cast<double>(caloHitList.size()));
 
-    std::map<const MCParticle*, int> mcParticles;
+    std::map<const MCParticle*, int> mcParticlesToNHitsMap;
+    std::map<const MCParticle*, int> mcParticlesToIndex;
+
+    int index(0);
 
     for (const CaloHit *pCaloHit : caloHitList)
     {
@@ -131,13 +134,15 @@ void SliceAnalysis::WriteHitList(const int eventNumber, const int sliceCounter, 
             pdg = pMCParticle->GetParticleId();
 
             // ATTN: All MCParticles, not just primaries
-            if (mcParticles.find(pMCParticle) == mcParticles.end())
+            if (mcParticlesToNHitsMap.find(pMCParticle) == mcParticlesToNHitsMap.end())
             {
-                mcParticles.insert(std::make_pair(pMCParticle, 1));
+                mcParticlesToNHitsMap.insert(std::make_pair(pMCParticle, 1));
+                mcParticlesToIndex.insert(std::make_pair(pMCParticle, index));
+                index++;
             }
             else
             {
-                mcParticles.at(pMCParticle)++;
+                mcParticlesToNHitsMap.at(pMCParticle)++;
             }
         }
         catch(...)
@@ -150,11 +155,12 @@ void SliceAnalysis::WriteHitList(const int eventNumber, const int sliceCounter, 
         featureVector.push_back(static_cast<double>(pCaloHit->GetPositionVector().GetY()));
         featureVector.push_back(static_cast<double>(pCaloHit->GetPositionVector().GetZ()));
         featureVector.push_back(static_cast<double>(pdg));
+        featureVector.push_back(static_cast<double>(index));
     }
 
     int nTargetTrks(0), nTargetShws(0);
 
-    for (const auto iter : mcParticles)
+    for (const auto iter : mcParticlesToNHitsMap)
     {
         if (iter.second < m_minTargetHits)
             continue;
