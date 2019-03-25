@@ -118,7 +118,7 @@ void SliceAnalysis::WriteHitList(const int eventNumber, const int sliceCounter, 
     std::map<const MCParticle*, int> mcParticlesToNHitsMap;
     std::map<const MCParticle*, int> mcParticlesToIndex;
 
-    int index(0);
+    int index(0), globalIndex(0);
 
     for (const CaloHit *pCaloHit : caloHitList)
     {
@@ -137,13 +137,19 @@ void SliceAnalysis::WriteHitList(const int eventNumber, const int sliceCounter, 
             if (mcParticlesToNHitsMap.find(pMCParticle) == mcParticlesToNHitsMap.end())
             {
                 mcParticlesToNHitsMap.insert(std::make_pair(pMCParticle, 1));
-                mcParticlesToIndex.insert(std::make_pair(pMCParticle, index));
-                index++;
             }
             else
             {
                 mcParticlesToNHitsMap.at(pMCParticle)++;
             }
+
+            if (mcParticlesToIndex.find(pMCParticle) == mcParticlesToIndex.end())
+            {
+                mcParticlesToIndex.insert(std::make_pair(pMCParticle, globalIndex));
+                globalIndex++;
+            }
+
+            index = mcParticlesToIndex.at(pMCParticle);
         }
         catch(...)
         {
