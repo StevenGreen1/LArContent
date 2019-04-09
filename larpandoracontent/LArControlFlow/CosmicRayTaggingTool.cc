@@ -71,7 +71,7 @@ StatusCode CosmicRayTaggingTool::Initialize()
 
 //------------------------------------------------------------------------------------------------------------------------------------------
 
-void CosmicRayTaggingTool::FindAmbiguousPfos(const PfoList &parentCosmicRayPfos, PfoList &ambiguousPfos, const MasterAlgorithm *const /*pAlgorithm*/)
+void CosmicRayTaggingTool::FindAmbiguousPfos(const PfoList &parentCosmicRayPfos, PfoList &ambiguousPfos, const MasterAlgorithm *const pAlgorithm)
 {
     if (this->GetPandora().GetSettings()->ShouldDisplayAlgorithmInfo())
         std::cout << "----> Running Algorithm Tool: " << this->GetInstanceName() << ", " << this->GetType() << std::endl;
@@ -129,11 +129,57 @@ void CosmicRayTaggingTool::FindAmbiguousPfos(const PfoList &parentCosmicRayPfos,
     PfoToBoolMap pfoToIsLikelyCRMuonMap;
     this->TagCRMuons(candidates, pfoToInTimeMap, pfoToIsTopToBottomMap, neutrinoSliceSet, pfoToIsLikelyCRMuonMap);
 
+    PfoList pfoListOutOfTime, pfoListInTime;
+    PfoList pfoListTopBottom, pfoListNotTopBottom;
     for (const ParticleFlowObject *const pPfo : parentCosmicRayPfos)
     {
+        CaloHitList caloHitList;
+        LArPfoHelper::GetCaloHits(pPfo, TPC_VIEW_U, caloHitList);
+        LArPfoHelper::GetCaloHits(pPfo, TPC_VIEW_V, caloHitList);
+        LArPfoHelper::GetCaloHits(pPfo, TPC_VIEW_W, caloHitList);
+        bool usePfo(true);
+
+        for (const auto *pCaloHit : caloHitList)
+        {
+            const LArCaloHit *const pLArCaloHit(dynamic_cast<const LArCaloHit*>(pCaloHit));
+            if (pLArCaloHit->GetLArTPCVolumeId() != 1)
+                usePfo = false;
+        }
+
+        if (usePfo)
+        {
+            if (!pfoToInTimeMap.at(pPfo))
+            {
+                pfoListOutOfTime.push_back(pPfo);
+            }
+            else
+            {
+                pfoListInTime.push_back(pPfo);
+            }
+
+            if (!pfoToIsTopToBottomMap.at(pPfo))
+            {
+                pfoListTopBottom.push_back(pPfo);
+            }
+            else
+            {
+                pfoListNotTopBottom.push_back(pPfo);
+            }
+        }
+
         if (!pfoToIsLikelyCRMuonMap.at(pPfo))
             ambiguousPfos.push_back(pPfo);
     }
+
+    PANDORA_MONITORING_API(SetEveDisplayParameters(pAlgorithm->GetPandora(), true, DETECTOR_VIEW_XZ, -1.f, 1.f, 1.f));
+    PANDORA_MONITORING_API(VisualizeParticleFlowObjects(pAlgorithm->GetPandora(), &pfoListOutOfTime, "OutOfTime", RED, false, false));
+    PANDORA_MONITORING_API(VisualizeParticleFlowObjects(pAlgorithm->GetPandora(), &pfoListInTime, "InTime", DARKGREEN, false, false));
+    PANDORA_MONITORING_API(ViewEvent(pAlgorithm->GetPandora()));
+
+    PANDORA_MONITORING_API(SetEveDisplayParameters(pAlgorithm->GetPandora(), true, DETECTOR_VIEW_XZ, -1.f, 1.f, 1.f));
+    PANDORA_MONITORING_API(VisualizeParticleFlowObjects(pAlgorithm->GetPandora(), &pfoListTopBottom, "TopBottom", RED, false, false));
+    PANDORA_MONITORING_API(VisualizeParticleFlowObjects(pAlgorithm->GetPandora(), &pfoListNotTopBottom, "NotTopBottom", DARKGREEN, false, false));
+    PANDORA_MONITORING_API(ViewEvent(pAlgorithm->GetPandora()));
 }
 
 //------------------------------------------------------------------------------------------------------------------------------------------
