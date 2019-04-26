@@ -101,7 +101,24 @@ void MasterAlgorithm::ShiftPfoHierarchy(const ParticleFlowObject *const pParentP
 
     if (m_visualizeOverallRecoStatus)
     {
-        PANDORA_MONITORING_API(VisualizeParticleFlowObjects(this->GetPandora(), &pfoList, "AfterShiftCRPfos", RED));
+        MCParticleList mcParticleList;
+        for (const ParticleFlowObject *const pPfo : pfoList)
+        {
+            if (pPfo->GetParentPfoList().empty())
+                mcParticleList.push_back(LArMCParticleHelper::GetMainMCParticle(pPfo));
+        }
+
+        if (x0 > 0.f)
+        {
+            PANDORA_MONITORING_API(VisualizeParticleFlowObjects(this->GetPandora(), &pfoList, "AfterShiftCRPfos", RED, false, false));
+        }
+        else
+        {
+            PANDORA_MONITORING_API(VisualizeParticleFlowObjects(this->GetPandora(), &pfoList, "AfterShiftCRPfos", BLUE, false, false));
+        }
+
+        PANDORA_MONITORING_API(VisualizeMCParticles(this->GetPandora(), &mcParticleList, "MCParticles", BLACK));
+
         PANDORA_MONITORING_API(ViewEvent(this->GetPandora()));
     }
 }

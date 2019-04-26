@@ -9,6 +9,7 @@
 #include "Pandora/AlgorithmHeaders.h"
 
 #include "larpandoracontent/LArMonitoring/VisualMonitoringAlgorithm.h"
+#include "larpandoracontent/LArHelpers/LArPfoHelper.h"
 
 using namespace pandora;
 
@@ -150,8 +151,17 @@ void VisualMonitoringAlgorithm::VisualizeMCParticleList(const std::string &listN
         }
     }
 
+    MCParticleList newList;
+    for (const auto iter : *pMCParticleList)
+    {
+        if (iter->GetParticleId() == 13 && iter->GetParentList().empty())
+            newList.push_back(iter);
+    }
+
     PANDORA_MONITORING_API(VisualizeMCParticles(this->GetPandora(), pMCParticleList, listName.empty() ? "CurrentMCParticles" : listName.c_str(),
         AUTO, &m_particleSuppressionMap));
+
+    PANDORA_MONITORING_API(VisualizeMCParticles(this->GetPandora(), &newList, "ParentCosmics", RED,  &m_particleSuppressionMap));
 }
 
 //------------------------------------------------------------------------------------------------------------------------------------------
@@ -304,11 +314,34 @@ void VisualMonitoringAlgorithm::VisualizeParticleFlowList(const std::string &lis
         }
     }
 
+    PfoList cosmicsTrk, cosmicsShw, tb;
+
+    for (const auto pPfo : *pPfoList)
+    {
+        if (LArPfoHelper::IsTestBeam(LArPfoHelper::GetParentPfo(pPfo)))
+        {
+            tb.push_back(pPfo);
+        }
+        else if (std::fabs(pPfo->GetParticleId()) != 13)
+        {
+            cosmicsShw.push_back(pPfo);
+        }
+        else
+        {
+            cosmicsTrk.push_back(pPfo);
+        }
+    }
+
+    PANDORA_MONITORING_API(VisualizeParticleFlowObjects(this->GetPandora(), &tb, "TestBeam", DARKGREEN, false, false));
+    PANDORA_MONITORING_API(VisualizeParticleFlowObjects(this->GetPandora(), &cosmicsTrk, "CosmicTrks", RED, false, false));
+    PANDORA_MONITORING_API(VisualizeParticleFlowObjects(this->GetPandora(), &cosmicsShw, "CosmicShws", BLUE, false, false));
+/*
     PANDORA_MONITORING_API(VisualizeParticleFlowObjects(this->GetPandora(), pPfoList, listName.empty() ? "CurrentPfos" : listName.c_str(),
         (m_hitColors.find("particleid") != std::string::npos) ? AUTOID :
         (m_hitColors.find("iterate") != std::string::npos ? AUTOITER :
         (m_hitColors.find("energy") != std::string::npos ? AUTOENERGY :
         AUTO)), m_showPfoVertices, m_showPfoHierarchy));
+*/
 }
 
 //------------------------------------------------------------------------------------------------------------------------------------------
