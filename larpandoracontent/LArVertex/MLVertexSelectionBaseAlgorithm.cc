@@ -21,7 +21,7 @@
 #include "larpandoracontent/LArVertex/ShowerAsymmetryFeatureTool.h"
 #include "larpandoracontent/LArVertex/RPhiFeatureTool.h"
 
-#include "larpandoracontent/LArVertex/MLVertexSelectionAlgorithm.h"
+#include "larpandoracontent/LArVertex/MLVertexSelectionBaseAlgorithm.h"
 
 #include "larpandoracontent/LArUtility/KDTreeLinkerAlgoT.h"
 
@@ -31,7 +31,7 @@ using namespace pandora;
 
 namespace lar_content
 {
-MLVertexSelectionAlgorithm::MLVertexSelectionAlgorithm() :
+MLVertexSelectionBaseAlgorithm::MLVertexSelectionBaseAlgorithm() :
     VertexSelectionBaseAlgorithm(),
     m_trainingSetMode(false),
     m_allowClassifyDuringTraining(false),
@@ -57,7 +57,7 @@ MLVertexSelectionAlgorithm::MLVertexSelectionAlgorithm() :
 
 //------------------------------------------------------------------------------------------------------------------------------------------
 
-void MLVertexSelectionAlgorithm::GetVertexScoreList(const VertexVector &vertexVector, const BeamConstants &beamConstants,
+void MLVertexSelectionBaseAlgorithm::GetVertexScoreList(const VertexVector &vertexVector, const BeamConstants &beamConstants,
     HitKDTree2D &kdTreeU, HitKDTree2D &kdTreeV, HitKDTree2D &kdTreeW, VertexScoreList &vertexScoreList) const
 {
     ClusterList clustersU, clustersV, clustersW;
@@ -117,7 +117,7 @@ void MLVertexSelectionAlgorithm::GetVertexScoreList(const VertexVector &vertexVe
     if ((!m_trainingSetMode || m_allowClassifyDuringTraining) && !bestRegionVertices.empty())
     {
         // Use ml to choose the region.
-        const Vertex *const pBestRegionVertex(this->CompareVertices(bestRegionVertices, vertexFeatureInfoMap, eventFeatureList, m_mlRegion,
+        const Vertex *const pBestRegionVertex(this->CompareVertices(bestRegionVertices, vertexFeatureInfoMap, eventFeatureList,
             m_useRPhiFeatureForRegion, true));
 
         // Get all the vertices in the best region.
@@ -136,7 +136,7 @@ void MLVertexSelectionAlgorithm::GetVertexScoreList(const VertexVector &vertexVe
         if (!regionalVertices.empty())
         {
             // Use ml to choose the vertex and then fine-tune using the RPhi score.
-            const Vertex *const pBestVertex(this->CompareVertices(regionalVertices, vertexFeatureInfoMap, eventFeatureList, m_mlVertex, true));
+            const Vertex *const pBestVertex(this->CompareVertices(regionalVertices, vertexFeatureInfoMap, eventFeatureList, true));
             this->PopulateFinalVertexScoreList(vertexFeatureInfoMap, pBestVertex, vertexVector, vertexScoreList);
         }
     }
@@ -144,7 +144,7 @@ void MLVertexSelectionAlgorithm::GetVertexScoreList(const VertexVector &vertexVe
 
 //------------------------------------------------------------------------------------------------------------------------------------------
 
-void MLVertexSelectionAlgorithm::CalculateShowerClusterList(const ClusterList &inputClusterList, ShowerClusterList &showerClusterList) const
+void MLVertexSelectionBaseAlgorithm::CalculateShowerClusterList(const ClusterList &inputClusterList, ShowerClusterList &showerClusterList) const
 {
     ClusterEndPointsMap clusterEndPointsMap;
     ClusterList showerLikeClusters;
@@ -198,7 +198,7 @@ void MLVertexSelectionAlgorithm::CalculateShowerClusterList(const ClusterList &i
 
 //------------------------------------------------------------------------------------------------------------------------------------------
 
-void MLVertexSelectionAlgorithm::GetShowerLikeClusterEndPoints(const ClusterList &clusterList, ClusterList &showerLikeClusters,
+void MLVertexSelectionBaseAlgorithm::GetShowerLikeClusterEndPoints(const ClusterList &clusterList, ClusterList &showerLikeClusters,
     ClusterEndPointsMap &clusterEndPointsMap) const
 {
     for (const Cluster *const pCluster : clusterList)
@@ -225,7 +225,7 @@ void MLVertexSelectionAlgorithm::GetShowerLikeClusterEndPoints(const ClusterList
 
 //------------------------------------------------------------------------------------------------------------------------------------------
 
-void MLVertexSelectionAlgorithm::PopulateKdTree(const ClusterList &clusterList, HitKDTree2D &kdTree, HitToClusterMap &hitToClusterMap) const
+void MLVertexSelectionBaseAlgorithm::PopulateKdTree(const ClusterList &clusterList, HitKDTree2D &kdTree, HitToClusterMap &hitToClusterMap) const
 {
     CaloHitList allCaloHits;
 
@@ -246,7 +246,7 @@ void MLVertexSelectionAlgorithm::PopulateKdTree(const ClusterList &clusterList, 
 
 //------------------------------------------------------------------------------------------------------------------------------------------
 
-bool MLVertexSelectionAlgorithm::AddClusterToShower(const ClusterEndPointsMap &clusterEndPointsMap, ClusterList &availableShowerLikeClusters,
+bool MLVertexSelectionBaseAlgorithm::AddClusterToShower(const ClusterEndPointsMap &clusterEndPointsMap, ClusterList &availableShowerLikeClusters,
     const Cluster *const pCluster, ClusterList &showerCluster) const
 {
     const auto existingEndPointsIter(clusterEndPointsMap.find(pCluster));
@@ -284,7 +284,7 @@ bool MLVertexSelectionAlgorithm::AddClusterToShower(const ClusterEndPointsMap &c
 
 //------------------------------------------------------------------------------------------------------------------------------------------
 
-bool MLVertexSelectionAlgorithm::AddClusterToShower(HitKDTree2D &kdTree, const HitToClusterMap &hitToClusterMap,
+bool MLVertexSelectionBaseAlgorithm::AddClusterToShower(HitKDTree2D &kdTree, const HitToClusterMap &hitToClusterMap,
     ClusterList &availableShowerLikeClusters, const Cluster *const pCluster, ClusterList &showerCluster) const
 {
     ClusterSet nearbyClusters;
@@ -319,7 +319,7 @@ bool MLVertexSelectionAlgorithm::AddClusterToShower(HitKDTree2D &kdTree, const H
 
 //------------------------------------------------------------------------------------------------------------------------------------------
 
-MLVertexSelectionAlgorithm::EventFeatureInfo MLVertexSelectionAlgorithm::CalculateEventFeatures(const ClusterList &clusterListU,
+MLVertexSelectionBaseAlgorithm::EventFeatureInfo MLVertexSelectionBaseAlgorithm::CalculateEventFeatures(const ClusterList &clusterListU,
     const ClusterList &clusterListV, const ClusterList &clusterListW, const VertexVector &vertexVector) const
 {
     float eventEnergy(0.f);
@@ -344,7 +344,7 @@ MLVertexSelectionAlgorithm::EventFeatureInfo MLVertexSelectionAlgorithm::Calcula
 
 //------------------------------------------------------------------------------------------------------------------------------------------
 
-void MLVertexSelectionAlgorithm::IncrementShoweryParameters(const ClusterList &clusterList, unsigned int &nShoweryHits, unsigned int &nHits,
+void MLVertexSelectionBaseAlgorithm::IncrementShoweryParameters(const ClusterList &clusterList, unsigned int &nShoweryHits, unsigned int &nHits,
     float &eventEnergy) const
 {
     for (const Cluster *const pCluster : clusterList)
@@ -359,14 +359,14 @@ void MLVertexSelectionAlgorithm::IncrementShoweryParameters(const ClusterList &c
 
 //------------------------------------------------------------------------------------------------------------------------------------------
 
-inline bool MLVertexSelectionAlgorithm::IsClusterShowerLike(const Cluster *const pCluster) const
+inline bool MLVertexSelectionBaseAlgorithm::IsClusterShowerLike(const Cluster *const pCluster) const
 {
     return (pCluster->GetParticleId() == E_MINUS && LArClusterHelper::GetLength(pCluster) < m_minShowerSpineLength);
 }
 
 //------------------------------------------------------------------------------------------------------------------------------------------
 
-void MLVertexSelectionAlgorithm::GetEventShapeFeatures(const ClusterList &clusterList, float &eventVolume, float &longitudinality) const
+void MLVertexSelectionBaseAlgorithm::GetEventShapeFeatures(const ClusterList &clusterList, float &eventVolume, float &longitudinality) const
 {
     InputFloat xMin, yMin, zMin, xMax, yMax, zMax;
 
@@ -406,7 +406,7 @@ void MLVertexSelectionAlgorithm::GetEventShapeFeatures(const ClusterList &cluste
 
 //------------------------------------------------------------------------------------------------------------------------------------------
 
-inline void MLVertexSelectionAlgorithm::UpdateSpanCoordinate(const float minPositionCoord, const float maxPositionCoord, InputFloat &minCoord,
+inline void MLVertexSelectionBaseAlgorithm::UpdateSpanCoordinate(const float minPositionCoord, const float maxPositionCoord, InputFloat &minCoord,
     InputFloat &maxCoord) const
 {
     if (!minCoord.IsInitialized() || minPositionCoord < minCoord.Get())
@@ -418,7 +418,7 @@ inline void MLVertexSelectionAlgorithm::UpdateSpanCoordinate(const float minPosi
 
 //------------------------------------------------------------------------------------------------------------------------------------------
 
-inline float MLVertexSelectionAlgorithm::GetCoordinateSpan(const InputFloat &minCoord, const InputFloat &maxCoord) const
+inline float MLVertexSelectionBaseAlgorithm::GetCoordinateSpan(const InputFloat &minCoord, const InputFloat &maxCoord) const
 {
    if (minCoord.IsInitialized() && maxCoord.IsInitialized())
         return std::fabs(maxCoord.Get() - minCoord.Get());
@@ -428,7 +428,7 @@ inline float MLVertexSelectionAlgorithm::GetCoordinateSpan(const InputFloat &min
 
 //------------------------------------------------------------------------------------------------------------------------------------------
 
-void MLVertexSelectionAlgorithm::AddEventFeaturesToVector(const EventFeatureInfo &eventFeatureInfo,
+void MLVertexSelectionBaseAlgorithm::AddEventFeaturesToVector(const EventFeatureInfo &eventFeatureInfo,
     LArMvaHelper::MvaFeatureVector &featureVector) const
 {
     featureVector.push_back(static_cast<double>(eventFeatureInfo.m_eventShoweryness));
@@ -442,7 +442,7 @@ void MLVertexSelectionAlgorithm::AddEventFeaturesToVector(const EventFeatureInfo
 
 //------------------------------------------------------------------------------------------------------------------------------------------
 
-void MLVertexSelectionAlgorithm::PopulateVertexFeatureInfoMap(const BeamConstants &beamConstants, const ClusterListMap &clusterListMap,
+void MLVertexSelectionBaseAlgorithm::PopulateVertexFeatureInfoMap(const BeamConstants &beamConstants, const ClusterListMap &clusterListMap,
     const SlidingFitDataListMap &slidingFitDataListMap, const ShowerClusterListMap &showerClusterListMap, const KDTreeMap &kdTreeMap,
     const Vertex *const pVertex, VertexFeatureInfoMap &vertexFeatureInfoMap) const
 {
@@ -471,7 +471,7 @@ void MLVertexSelectionAlgorithm::PopulateVertexFeatureInfoMap(const BeamConstant
 
 //------------------------------------------------------------------------------------------------------------------------------------------
 
-void MLVertexSelectionAlgorithm::PopulateInitialScoreList(VertexFeatureInfoMap &vertexFeatureInfoMap, const Vertex *const pVertex,
+void MLVertexSelectionBaseAlgorithm::PopulateInitialScoreList(VertexFeatureInfoMap &vertexFeatureInfoMap, const Vertex *const pVertex,
                                                            VertexScoreList &initialScoreList) const
 {
     VertexFeatureInfo vertexFeatureInfo = vertexFeatureInfoMap.at(pVertex);
@@ -487,7 +487,7 @@ void MLVertexSelectionAlgorithm::PopulateInitialScoreList(VertexFeatureInfoMap &
 
 //------------------------------------------------------------------------------------------------------------------------------------------
 
-void MLVertexSelectionAlgorithm::GetBestRegionVertices(VertexScoreList &initialScoreList, VertexVector &bestRegionVertices) const
+void MLVertexSelectionBaseAlgorithm::GetBestRegionVertices(VertexScoreList &initialScoreList, VertexVector &bestRegionVertices) const
 {
     std::sort(initialScoreList.begin(), initialScoreList.end());
 
@@ -520,7 +520,7 @@ void MLVertexSelectionAlgorithm::GetBestRegionVertices(VertexScoreList &initialS
 
 //------------------------------------------------------------------------------------------------------------------------------------------
 
-void MLVertexSelectionAlgorithm::ProduceTrainingSets(const VertexVector &vertexVector, const VertexVector &bestRegionVertices,
+void MLVertexSelectionBaseAlgorithm::ProduceTrainingSets(const VertexVector &vertexVector, const VertexVector &bestRegionVertices,
     VertexFeatureInfoMap &vertexFeatureInfoMap, const LArMvaHelper::MvaFeatureVector &eventFeatureList, const KDTreeMap &kdTreeMap) const
 {
     if (vertexVector.empty())
@@ -560,7 +560,7 @@ void MLVertexSelectionAlgorithm::ProduceTrainingSets(const VertexVector &vertexV
 
 //------------------------------------------------------------------------------------------------------------------------------------------
 
-void MLVertexSelectionAlgorithm::CalculateRPhiScores(VertexVector &vertexVector, VertexFeatureInfoMap &vertexFeatureInfoMap,
+void MLVertexSelectionBaseAlgorithm::CalculateRPhiScores(VertexVector &vertexVector, VertexFeatureInfoMap &vertexFeatureInfoMap,
     const KDTreeMap &kdTreeMap) const
 {
     float bestFastScore(-std::numeric_limits<float>::max());
@@ -582,7 +582,7 @@ void MLVertexSelectionAlgorithm::CalculateRPhiScores(VertexVector &vertexVector,
 
 //------------------------------------------------------------------------------------------------------------------------------------------
 
-std::string MLVertexSelectionAlgorithm::GetInteractionType() const
+std::string MLVertexSelectionBaseAlgorithm::GetInteractionType() const
 {
     // Extract input collections
     const MCParticleList *pMCParticleList(nullptr);
@@ -606,7 +606,7 @@ std::string MLVertexSelectionAlgorithm::GetInteractionType() const
 
 //------------------------------------------------------------------------------------------------------------------------------------------
 
-const pandora::Vertex * MLVertexSelectionAlgorithm::ProduceTrainingExamples(const VertexVector &vertexVector,
+const pandora::Vertex * MLVertexSelectionBaseAlgorithm::ProduceTrainingExamples(const VertexVector &vertexVector,
     const VertexFeatureInfoMap &vertexFeatureInfoMap, std::bernoulli_distribution &coinFlip, std::mt19937 &generator,
     const std::string &interactionType, const std::string &trainingOutputFile, const LArMvaHelper::MvaFeatureVector &eventFeatureList,
     const float maxRadius, const bool useRPhi) const
@@ -650,7 +650,7 @@ const pandora::Vertex * MLVertexSelectionAlgorithm::ProduceTrainingExamples(cons
 
 //------------------------------------------------------------------------------------------------------------------------------------------
 
-void MLVertexSelectionAlgorithm::GetBestVertex(const VertexVector &vertexVector, const Vertex *&pBestVertex, float &bestVertexDr) const
+void MLVertexSelectionBaseAlgorithm::GetBestVertex(const VertexVector &vertexVector, const Vertex *&pBestVertex, float &bestVertexDr) const
 {
     // Extract input collections
     const MCParticleList *pMCParticleList(nullptr);
@@ -683,7 +683,7 @@ void MLVertexSelectionAlgorithm::GetBestVertex(const VertexVector &vertexVector,
 
 //------------------------------------------------------------------------------------------------------------------------------------------
 
-void MLVertexSelectionAlgorithm::AddVertexFeaturesToVector(const VertexFeatureInfo &vertexFeatureInfo,
+void MLVertexSelectionBaseAlgorithm::AddVertexFeaturesToVector(const VertexFeatureInfo &vertexFeatureInfo,
     LArMvaHelper::MvaFeatureVector &featureVector, const bool useRPhi) const
 {
     featureVector.push_back(static_cast<double>(vertexFeatureInfo.m_beamDeweighting));
@@ -698,7 +698,7 @@ void MLVertexSelectionAlgorithm::AddVertexFeaturesToVector(const VertexFeatureIn
 
 //------------------------------------------------------------------------------------------------------------------------------------------
 
-void MLVertexSelectionAlgorithm::PopulateFinalVertexScoreList(const VertexFeatureInfoMap &vertexFeatureInfoMap, const Vertex *const pFavouriteVertex,
+void MLVertexSelectionBaseAlgorithm::PopulateFinalVertexScoreList(const VertexFeatureInfoMap &vertexFeatureInfoMap, const Vertex *const pFavouriteVertex,
     const VertexVector &vertexVector, VertexScoreList &finalVertexScoreList) const
 {
     if (pFavouriteVertex)
@@ -719,7 +719,7 @@ void MLVertexSelectionAlgorithm::PopulateFinalVertexScoreList(const VertexFeatur
 //------------------------------------------------------------------------------------------------------------------------------------------
 //------------------------------------------------------------------------------------------------------------------------------------------
 
-StatusCode MLVertexSelectionAlgorithm::ReadSettings(const TiXmlHandle xmlHandle)
+StatusCode MLVertexSelectionBaseAlgorithm::ReadSettings(const TiXmlHandle xmlHandle)
 {
     AlgorithmToolVector algorithmToolVector;
     PANDORA_RETURN_RESULT_IF(STATUS_CODE_SUCCESS, !=, XmlHelper::ProcessAlgorithmToolList(*this, xmlHandle, "FeatureTools", algorithmToolVector));
@@ -744,7 +744,7 @@ StatusCode MLVertexSelectionAlgorithm::ReadSettings(const TiXmlHandle xmlHandle)
 
     if (m_trainingSetMode && (m_trainingOutputFileRegion.empty() || m_trainingOutputFileVertex.empty()))
     {
-        std::cout << "MLVertexSelectionAlgorithm: TrainingOutputFileRegion and TrainingOutputFileVertex are required for training set " <<
+        std::cout << "MLVertexSelectionBaseAlgorithm: TrainingOutputFileRegion and TrainingOutputFileVertex are required for training set " <<
                      "mode" << std::endl;
         return STATUS_CODE_INVALID_PARAMETER;
     }
@@ -757,7 +757,7 @@ StatusCode MLVertexSelectionAlgorithm::ReadSettings(const TiXmlHandle xmlHandle)
 
     if (m_trainingSetMode && (m_mcParticleListName.empty() || m_caloHitListName.empty()))
     {
-        std::cout << "MLVertexSelectionAlgorithm: MCParticleListName and CaloHitListName are required for training set mode" << std::endl;
+        std::cout << "MLVertexSelectionBaseAlgorithm: MCParticleListName and CaloHitListName are required for training set mode" << std::endl;
         return STATUS_CODE_INVALID_PARAMETER;
     }
 

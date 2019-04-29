@@ -172,7 +172,7 @@
 #include "larpandoracontent/LArVertex/CandidateVertexCreationAlgorithm.h"
 #include "larpandoracontent/LArVertex/EnergyKickVertexSelectionAlgorithm.h"
 #include "larpandoracontent/LArVertex/HitAngleVertexSelectionAlgorithm.h"
-#include "larpandoracontent/LArVertex/MLVertexSelectionAlgorithm.h"
+#include "larpandoracontent/LArVertex/BdtVertexSelectionAlgorithm.h"
 #include "larpandoracontent/LArVertex/SvmVertexSelectionAlgorithm.h"
 
 #include "larpandoracontent/LArContent.h"
@@ -263,7 +263,7 @@
     d("LArCandidateVertexCreation",             CandidateVertexCreationAlgorithm)                                               \
     d("LArEnergyKickVertexSelection",           EnergyKickVertexSelectionAlgorithm)                                             \
     d("LArHitAngleVertexSelection",             HitAngleVertexSelectionAlgorithm)                                               \
-    d("LArMLVertexSelection",                   MLVertexSelectionAlgorithm)                                                     \
+    d("LArBdtVertexSelection",                  BdtVertexSelectionAlgorithm)                                                    \
     d("LArSvmVertexSelection",                  SvmVertexSelectionAlgorithm)
 
 #define LAR_ALGORITHM_TOOL_LIST(d)                                                                                              \

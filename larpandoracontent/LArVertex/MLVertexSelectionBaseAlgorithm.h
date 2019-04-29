@@ -1,5 +1,5 @@
 /**
- *  @file   larpandoracontent/LArVertex/MLVertexSelectionAlgorithm.h
+ *  @file   larpandoracontent/LArVertex/MLVertexSelectionBaseAlgorithm.h
  *
  *  @brief  Header file for the machine learning vertex selection algorithm class.
  *
@@ -28,9 +28,9 @@ template<typename, unsigned int> class KDTreeNodeInfoT;
 //------------------------------------------------------------------------------------------------------------------------------------------
 
 /**
- *  @brief  MLVertexSelectionAlgorithm class
+ *  @brief  MLVertexSelectionBaseAlgorithm class
  */
-class MLVertexSelectionAlgorithm : public VertexSelectionBaseAlgorithm
+class MLVertexSelectionBaseAlgorithm : public VertexSelectionBaseAlgorithm
 {
 public:
     /**
@@ -98,7 +98,7 @@ public:
     /**
      *  @brief  Default constructor
      */
-    MLVertexSelectionAlgorithm();
+    MLVertexSelectionBaseAlgorithm();
 
 protected:
     /**
@@ -107,17 +107,27 @@ protected:
      *  @param  vertexVector the vector of vertices
      *  @param  vertexFeatureInfoMap the vertex feature info map
      *  @param  eventFeatureList the event feature list
-     *  @param  supportVectorMachine the support vector machine classifier
      *  @param  useRPhi whether to include the r/phi feature
      *  @param  isRegion whether to use region machine learning tool
      *
      *  @return address of the best vertex
      */
     virtual const pandora::Vertex * CompareVertices(const pandora::VertexVector &vertexVector, const VertexFeatureInfoMap &vertexFeatureInfoMap,
-        const LArMvaHelper::MvaFeatureVector &eventFeatureList, const SupportVectorMachine &supportVectorMachine, const bool useRPhi,
-        const bool isRegion = false) const;
+        const LArMvaHelper::MvaFeatureVector &eventFeatureList, const bool useRPhi, const bool isRegion = false) const = 0;
+
+    /**
+     *  @brief  Add the vertex features to a vector in the correct order
+     *
+     *  @param  vertexFeatureInfo the vertex feature info
+     *  @param  featureVector the vector of floats to append
+     *  @param  useRPhi whether to include the r/phi feature
+     */
+    void AddVertexFeaturesToVector(const VertexFeatureInfo &vertexFeatureInfo, LArMvaHelper::MvaFeatureVector &featureVector, const bool useRPhi) const;
 
     pandora::StatusCode ReadSettings(const pandora::TiXmlHandle xmlHandle);
+
+    bool                  m_trainingSetMode;                      ///< Whether to train
+    bool                  m_allowClassifyDuringTraining;          ///< Whether classification is allowed during training
 
 private:
     typedef std::pair<pandora::CartesianVector, pandora::CartesianVector> ClusterEndPoints;
@@ -262,14 +272,6 @@ private:
     float GetCoordinateSpan(const pandora::InputFloat &minCoord, const pandora::InputFloat &maxCoord) const;
 
     /**
-     *  @brief  Add the event features to a vector in the correct order
-     *
-     *  @param  eventFeatureInfo the event feature info
-     *  @param  featureVector the vector of doubles to append
-     */
-    void AddEventFeaturesToVector(const EventFeatureInfo &eventFeatureInfo, LArMvaHelper::MvaFeatureVector &featureVector) const;
-
-    /**
      *  @brief  Populate the vertex feature info map for a given vertex
      *
      *  @param  beamConstants the beam constants
@@ -350,6 +352,14 @@ private:
         const LArMvaHelper::MvaFeatureVector &eventFeatureList, const float maxRadius, const bool useRPhi) const;
 
     /**
+     *  @brief  Add the event features to a vector in the correct order
+     *
+     *  @param  eventFeatureInfo the event feature info
+     *  @param  featureVector the vector of doubles to append
+     */
+    void AddEventFeaturesToVector(const EventFeatureInfo &eventFeatureInfo, LArMvaHelper::MvaFeatureVector &featureVector) const;
+
+    /**
      *  @brief  Use the MC information to get the best vertex from a list
      *
      *  @param  vertexVector the vector of vertices
@@ -357,15 +367,6 @@ private:
      *  @param  bestVertexDr dR of the best vertex
      */
     void GetBestVertex(const pandora::VertexVector &vertexVector, const pandora::Vertex *&pBestVertex, float &bestVertexDr) const;
-
-    /**
-     *  @brief  Add the vertex features to a vector in the correct order
-     *
-     *  @param  vertexFeatureInfo the vertex feature info
-     *  @param  featureVector the vector of floats to append
-     *  @param  useRPhi whether to include the r/phi feature
-     */
-    void AddVertexFeaturesToVector(const VertexFeatureInfo &vertexFeatureInfo, LArMvaHelper::MvaFeatureVector &featureVector, const bool useRPhi) const;
 
     /**
      *  @brief  Populate the final vertex score list using the r/phi score to find the best vertex in the vicinity
@@ -380,8 +381,6 @@ private:
 
     VertexFeatureTool::FeatureToolVector    m_featureToolVector;            ///< The feature tool vector
 
-    bool                  m_trainingSetMode;                      ///< Whether to train
-    bool                  m_allowClassifyDuringTraining;          ///< Whether classification is allowed during training
     float                 m_mcVertexXCorrection;                  ///< The correction to the x-coordinate of the MC vertex position
     std::string           m_trainingOutputFileRegion;             ///< The training output file for the region ML
     std::string           m_trainingOutputFileVertex;             ///< The training output file for the vertex ML
@@ -411,7 +410,7 @@ private:
 
 //------------------------------------------------------------------------------------------------------------------------------------------
 
-inline MLVertexSelectionAlgorithm::VertexFeatureInfo::VertexFeatureInfo(const float beamDeweighting, const float rPhiFeature, const float energyKick,
+inline MLVertexSelectionBaseAlgorithm::VertexFeatureInfo::VertexFeatureInfo(const float beamDeweighting, const float rPhiFeature, const float energyKick,
     const float localAsymmetry, const float globalAsymmetry, const float showerAsymmetry) :
     m_beamDeweighting(beamDeweighting),
     m_rPhiFeature(rPhiFeature),
@@ -424,7 +423,7 @@ inline MLVertexSelectionAlgorithm::VertexFeatureInfo::VertexFeatureInfo(const fl
 
 //------------------------------------------------------------------------------------------------------------------------------------------
 
-inline MLVertexSelectionAlgorithm::EventFeatureInfo::EventFeatureInfo(const float eventShoweryness, const float eventEnergy,
+inline MLVertexSelectionBaseAlgorithm::EventFeatureInfo::EventFeatureInfo(const float eventShoweryness, const float eventEnergy,
     const float eventVolume, const float longitudinality, const unsigned int nHits, const unsigned int nClusters, const unsigned int nCandidates) :
     m_eventShoweryness(eventShoweryness),
     m_eventEnergy(eventEnergy),
