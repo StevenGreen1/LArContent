@@ -51,7 +51,8 @@ MLVertexSelectionBaseAlgorithm::MLVertexSelectionBaseAlgorithm() :
     m_rPhiFineTuningRadius(2.f),
     m_maxTrueVertexRadius(1.f),
     m_useRPhiFeatureForRegion(false),
-    m_dropFailedRPhiFastScoreCandidates(true)
+    m_dropFailedRPhiFastScoreCandidates(true),
+    m_testBeamMode(false)
 {
 }
 
@@ -533,6 +534,8 @@ void MLVertexSelectionBaseAlgorithm::ProduceTrainingSets(const VertexVector &ver
 
     const std::string interactionType(this->GetInteractionType());
 
+    PANDORA_MONITORING_API(SetEveDisplayParameters(this->GetPandora(), true, DETECTOR_VIEW_XZ, -1.f, 1.f, 1.f));
+
     // Produce training examples for the vertices representing regions.
     const Vertex *const pBestRegionVertex(this->ProduceTrainingExamples(bestRegionVertices, vertexFeatureInfoMap, coinFlip, generator,
         interactionType, m_trainingOutputFileRegion, eventFeatureList, m_regionRadius, m_useRPhiFeatureForRegion));
@@ -556,6 +559,34 @@ void MLVertexSelectionBaseAlgorithm::ProduceTrainingSets(const VertexVector &ver
         this->ProduceTrainingExamples(regionalVertices, vertexFeatureInfoMap, coinFlip, generator, interactionType, m_trainingOutputFileVertex,
             eventFeatureList, m_maxTrueVertexRadius, true);
     }
+
+    VertexList bestVertexList, bestRegionVerticesList, regionalVerticesList;
+
+    bestVertexList.push_back(pBestRegionVertex);
+
+    for (const auto iter : bestRegionVertices)
+        bestRegionVerticesList.push_back(iter);
+
+    for (const auto iter : regionalVertices)
+        regionalVerticesList.push_back(iter);
+
+    PANDORA_MONITORING_API(VisualizeVertices(this->GetPandora(), &bestVertexList, "BestVertex", DARKGREEN));
+    PANDORA_MONITORING_API(VisualizeVertices(this->GetPandora(), &bestRegionVerticesList, "BestRegionVertexList", RED));
+    PANDORA_MONITORING_API(VisualizeVertices(this->GetPandora(), &regionalVerticesList, "RegionalVertexList", BLUE));
+
+    const MCParticleList *pMCParticleList(nullptr);
+    PANDORA_THROW_RESULT_IF(STATUS_CODE_SUCCESS, !=, PandoraContentApi::GetList(*this, m_mcParticleListName, pMCParticleList));
+
+    MCParticleList filtered;
+    for (const auto iter : *pMCParticleList)
+    {
+        if (LArMCParticleHelper::IsTriggeredBeamParticle(iter))
+            filtered.push_back(iter);
+    }
+
+    PANDORA_MONITORING_API(VisualizeMCParticles(this->GetPandora(), &filtered, "CurrentMCParticles", AUTO));
+
+    PANDORA_MONITORING_API(ViewEvent(this->GetPandora()));
 }
 
 //------------------------------------------------------------------------------------------------------------------------------------------
@@ -592,12 +623,18 @@ std::string MLVertexSelectionBaseAlgorithm::GetInteractionType() const
     PANDORA_THROW_RESULT_IF(STATUS_CODE_SUCCESS, !=, PandoraContentApi::GetList(*this, m_caloHitListName, pCaloHitList));
 
     // ATTN Assumes single neutrino is parent of all neutrino-induced mc particles
-    LArMCParticleHelper::MCContributionMap nuMCParticlesToGoodHitsMap;
+    LArMCParticleHelper::MCContributionMap targetMCParticlesToGoodHitsMap;
     LArMCParticleHelper::SelectReconstructableMCParticles(pMCParticleList, pCaloHitList, LArMCParticleHelper::PrimaryParameters(),
-        LArMCParticleHelper::IsBeamNeutrinoFinalState, nuMCParticlesToGoodHitsMap);
+        LArMCParticleHelper::IsBeamNeutrinoFinalState, targetMCParticlesToGoodHitsMap);
+
+    if (m_testBeamMode)
+    {
+        LArMCParticleHelper::SelectReconstructableMCParticles(pMCParticleList, pCaloHitList, LArMCParticleHelper::PrimaryParameters(),
+            LArMCParticleHelper::IsTriggeredBeamParticle, targetMCParticlesToGoodHitsMap);
+    }
 
     MCParticleList mcPrimaryList;
-    for (const auto &mapEntry : nuMCParticlesToGoodHitsMap) mcPrimaryList.push_back(mapEntry.first);
+    for (const auto &mapEntry : targetMCParticlesToGoodHitsMap) mcPrimaryList.push_back(mapEntry.first);
     mcPrimaryList.sort(LArMCParticleHelper::SortByMomentum);
 
     const LArInteractionTypeHelper::InteractionType interactionType(LArInteractionTypeHelper::GetInteractionType(mcPrimaryList));
@@ -636,7 +673,6 @@ const pandora::Vertex * MLVertexSelectionBaseAlgorithm::ProduceTrainingExamples(
                 LArMvaHelper::ProduceTrainingExample(trainingOutputFile + "_" + interactionType + ".txt", true, eventFeatureList,
                     bestVertexFeatureList, featureList);
             }
-
             else
             {
                 LArMvaHelper::ProduceTrainingExample(trainingOutputFile + "_" + interactionType + ".txt", false, eventFeatureList, featureList,
@@ -657,18 +693,28 @@ void MLVertexSelectionBaseAlgorithm::GetBestVertex(const VertexVector &vertexVec
     PANDORA_THROW_RESULT_IF(STATUS_CODE_SUCCESS, !=, PandoraContentApi::GetList(*this, m_mcParticleListName, pMCParticleList));
 
     // Obtain vector: true neutrinos
-    MCParticleVector mcNeutrinoVector;
-    LArMCParticleHelper::GetTrueNeutrinos(pMCParticleList, mcNeutrinoVector);
+    MCParticleVector mcTargetVector;
+
+    if (m_testBeamMode)
+    {
+        LArMCParticleHelper::GetTrueTestBeamParticles(pMCParticleList, mcTargetVector);
+    }
+    else
+    {
+        LArMCParticleHelper::GetTrueNeutrinos(pMCParticleList, mcTargetVector);
+    }
 
     for (const Vertex *const pVertex : vertexVector)
     {
         float mcVertexDr(std::numeric_limits<float>::max());
-        for (const MCParticle *const pMCNeutrino : mcNeutrinoVector)
+        for (const MCParticle *const pMCTarget : mcTargetVector)
         {
-            const CartesianVector mcNeutrinoPosition(pMCNeutrino->GetEndpoint().GetX() + m_mcVertexXCorrection, pMCNeutrino->GetEndpoint().GetY(),
-                pMCNeutrino->GetEndpoint().GetZ());
+            const CartesianVector mcTargetPoint((m_testBeamMode && std::fabs(pMCTarget->GetParticleId()) == 11) ? pMCTarget->GetVertex() :
+                pMCTarget->GetEndpoint());
 
-            const float dr = (mcNeutrinoPosition - pVertex->GetPosition()).GetMagnitude();
+            const CartesianVector mcTargetPosition(mcTargetPoint.GetX() + m_mcVertexXCorrection, mcTargetPoint.GetY(), mcTargetPoint.GetZ());
+
+            const float dr = (mcTargetPosition - pVertex->GetPosition()).GetMagnitude();
             if (dr < mcVertexDr)
                 mcVertexDr = dr;
         }
@@ -811,6 +857,9 @@ StatusCode MLVertexSelectionBaseAlgorithm::ReadSettings(const TiXmlHandle xmlHan
 
     PANDORA_RETURN_RESULT_IF_AND_IF(STATUS_CODE_SUCCESS, STATUS_CODE_NOT_FOUND, !=, XmlHelper::ReadValue(xmlHandle,
         "DropFailedRPhiFastScoreCandidates", m_dropFailedRPhiFastScoreCandidates));
+
+    PANDORA_RETURN_RESULT_IF_AND_IF(STATUS_CODE_SUCCESS, STATUS_CODE_NOT_FOUND, !=, XmlHelper::ReadValue(xmlHandle,
+        "TestBeamMode", m_testBeamMode));
 
     return VertexSelectionBaseAlgorithm::ReadSettings(xmlHandle);
 }
