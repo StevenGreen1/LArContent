@@ -534,8 +534,6 @@ void MLVertexSelectionBaseAlgorithm::ProduceTrainingSets(const VertexVector &ver
 
     const std::string interactionType(this->GetInteractionType());
 
-    PANDORA_MONITORING_API(SetEveDisplayParameters(this->GetPandora(), true, DETECTOR_VIEW_XZ, -1.f, 1.f, 1.f));
-
     // Produce training examples for the vertices representing regions.
     const Vertex *const pBestRegionVertex(this->ProduceTrainingExamples(bestRegionVertices, vertexFeatureInfoMap, coinFlip, generator,
         interactionType, m_trainingOutputFileRegion, eventFeatureList, m_regionRadius, m_useRPhiFeatureForRegion));
@@ -559,34 +557,6 @@ void MLVertexSelectionBaseAlgorithm::ProduceTrainingSets(const VertexVector &ver
         this->ProduceTrainingExamples(regionalVertices, vertexFeatureInfoMap, coinFlip, generator, interactionType, m_trainingOutputFileVertex,
             eventFeatureList, m_maxTrueVertexRadius, true);
     }
-
-    VertexList bestVertexList, bestRegionVerticesList, regionalVerticesList;
-
-    bestVertexList.push_back(pBestRegionVertex);
-
-    for (const auto iter : bestRegionVertices)
-        bestRegionVerticesList.push_back(iter);
-
-    for (const auto iter : regionalVertices)
-        regionalVerticesList.push_back(iter);
-
-    PANDORA_MONITORING_API(VisualizeVertices(this->GetPandora(), &bestVertexList, "BestVertex", DARKGREEN));
-    PANDORA_MONITORING_API(VisualizeVertices(this->GetPandora(), &bestRegionVerticesList, "BestRegionVertexList", RED));
-    PANDORA_MONITORING_API(VisualizeVertices(this->GetPandora(), &regionalVerticesList, "RegionalVertexList", BLUE));
-
-    const MCParticleList *pMCParticleList(nullptr);
-    PANDORA_THROW_RESULT_IF(STATUS_CODE_SUCCESS, !=, PandoraContentApi::GetList(*this, m_mcParticleListName, pMCParticleList));
-
-    MCParticleList filtered;
-    for (const auto iter : *pMCParticleList)
-    {
-        if (LArMCParticleHelper::IsTriggeredBeamParticle(iter))
-            filtered.push_back(iter);
-    }
-
-    PANDORA_MONITORING_API(VisualizeMCParticles(this->GetPandora(), &filtered, "CurrentMCParticles", AUTO));
-
-    PANDORA_MONITORING_API(ViewEvent(this->GetPandora()));
 }
 
 //------------------------------------------------------------------------------------------------------------------------------------------
