@@ -172,6 +172,11 @@ void EventValidationAlgorithm::ProcessOutput(const ValidationInfo &validationInf
         if (pRecoNeutrino && !neutrinoPfoToIdMap.count(pRecoNeutrino))
             neutrinoPfoToIdMap.insert(PfoToIdMap::value_type(pRecoNeutrino, ++neutrinoPfoIndex));
     }
+std::cout << "Event" << std::endl;
+for (const auto iter : pfoToIdMap)
+{
+std::cout << "PFO : " << iter.first->GetParticleId() << ", ID " << iter.second << std::endl;
+}
 
     PfoSet recoNeutrinos;
     MCParticleList associatedMCPrimaries;
