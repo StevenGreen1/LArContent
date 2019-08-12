@@ -22,7 +22,8 @@ DeepLearningTrackShowerIdAlgorithm::DeepLearningTrackShowerIdAlgorithm() :
     m_xMax(700),
     m_zMin(-400),
     m_zMax(1000),
-    m_nBins(1024)
+    m_nBins(1024),
+    m_visualize(false)
 {
 }
 
@@ -33,7 +34,8 @@ StatusCode DeepLearningTrackShowerIdAlgorithm::Run()
     // Load the model.pt file.
     std::shared_ptr<torch::jit::script::Module> pModule = torch::jit::load(m_modelFileName);
 
-    PANDORA_MONITORING_API(SetEveDisplayParameters(this->GetPandora(), true, DETECTOR_VIEW_XZ, -1.f, 1.f, 1.f));
+    if (m_visualize)
+        PANDORA_MONITORING_API(SetEveDisplayParameters(this->GetPandora(), true, DETECTOR_VIEW_XZ, -1.f, 1.f, 1.f));
 
     for (const std::string listName : m_caloHitListNames)
     {
@@ -94,25 +96,38 @@ StatusCode DeepLearningTrackShowerIdAlgorithm::Run()
 
             // Is the R value bigger than the B value.  In training the target picture was coloured such that showers were red and tracks blue
             const bool isTrack(outputAccessor[0][0][xBin][zBin] > outputAccessor[0][2][xBin][zBin] ? false : true);
+            object_creation::CaloHit::Metadata metadata;
+
             if (isTrack)
             {
                 trackHits.push_back(pCaloHit);
+                metadata.m_propertiesToAdd["IsTrack"] = 1.f;
             }
             else
             {
+                metadata.m_propertiesToAdd["IsShower"] = 1.f;
                 showerHits.push_back(pCaloHit);
             }
+
+            const StatusCode &statusCode(PandoraContentApi::CaloHit::AlterMetadata(*this, pCaloHit, metadata));
+
+            if (statusCode != STATUS_CODE_SUCCESS)
+                std::cout << "Cannot set calo hit meta data" << std::endl;
         }
 
-        const std::string trackListName("TrackHits_" + listName);
-        const std::string showerListName("ShowerHits_" + listName);
-        const std::string otherListName("OtherHits_" + listName);
-        PANDORA_MONITORING_API(VisualizeCaloHits(this->GetPandora(), &trackHits, trackListName, BLUE));
-        PANDORA_MONITORING_API(VisualizeCaloHits(this->GetPandora(), &showerHits, showerListName, RED));
-        PANDORA_MONITORING_API(VisualizeCaloHits(this->GetPandora(), &other, otherListName, BLACK));
+        if (m_visualize)
+        {
+            const std::string trackListName("TrackHits_" + listName);
+            const std::string showerListName("ShowerHits_" + listName);
+            const std::string otherListName("OtherHits_" + listName);
+            PANDORA_MONITORING_API(VisualizeCaloHits(this->GetPandora(), &trackHits, trackListName, BLUE));
+            PANDORA_MONITORING_API(VisualizeCaloHits(this->GetPandora(), &showerHits, showerListName, RED));
+            PANDORA_MONITORING_API(VisualizeCaloHits(this->GetPandora(), &other, otherListName, BLACK));
+        }
     }
 
-    PANDORA_MONITORING_API(ViewEvent(this->GetPandora()));
+    if (m_visualize)
+        PANDORA_MONITORING_API(ViewEvent(this->GetPandora()));
 
     return STATUS_CODE_SUCCESS;
 }
@@ -125,6 +140,9 @@ StatusCode DeepLearningTrackShowerIdAlgorithm::ReadSettings(const TiXmlHandle xm
         "CaloHitListNames", m_caloHitListNames));
 
     PANDORA_RETURN_RESULT_IF(STATUS_CODE_SUCCESS, !=, XmlHelper::ReadValue(xmlHandle, "ModelFileName", m_modelFileName));
+
+    PANDORA_RETURN_RESULT_IF_AND_IF(STATUS_CODE_SUCCESS, STATUS_CODE_NOT_FOUND, !=, XmlHelper::ReadValue(xmlHandle,
+        "Visualize", m_visualize));
 
     PANDORA_RETURN_RESULT_IF_AND_IF(STATUS_CODE_SUCCESS, STATUS_CODE_NOT_FOUND, !=, XmlHelper::ReadValue(xmlHandle,
         "ImageXMin", m_xMin));
