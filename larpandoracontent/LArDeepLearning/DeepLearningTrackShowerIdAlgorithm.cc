@@ -31,7 +31,7 @@ DeepLearningTrackShowerIdAlgorithm::DeepLearningTrackShowerIdAlgorithm() :
 StatusCode DeepLearningTrackShowerIdAlgorithm::Run()
 {
     // Load the model.pt file.
-    torch::jit::script::Module module = torch::jit::load(m_modelFileName);
+    std::shared_ptr<torch::jit::script::Module> pModule = torch::jit::load(m_modelFileName);
 
     PANDORA_MONITORING_API(SetEveDisplayParameters(this->GetPandora(), true, DETECTOR_VIEW_XZ, -1.f, 1.f, 1.f));
 
@@ -75,7 +75,7 @@ StatusCode DeepLearningTrackShowerIdAlgorithm::Run()
         inputs.push_back(input);
 
         // Run the input through the trained model and get the output accessor
-        at::Tensor output = module.forward(inputs).toTensor();
+        at::Tensor output = pModule->forward(inputs).toTensor();
         auto outputAccessor = output.accessor<float, 4>();
 
         // Colour in the shower and track bits (and other) in a visual display for first performance inspection
