@@ -35,6 +35,7 @@ private:
     float                     m_zMin;                ///< Min Z used in training model
     float                     m_zMax;                ///< Max Z used in training model
     int                       m_nBins;               ///< Number of bins used in training model (assumption is same number in X and Z)
+    bool                      m_visualize;           ///< Whether to visualize the track shower ID scores
 };
 
 } // namespace lar_content
