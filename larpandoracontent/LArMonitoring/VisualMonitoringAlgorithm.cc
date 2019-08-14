@@ -180,21 +180,39 @@ void VisualMonitoringAlgorithm::VisualizeCaloHitList(const std::string &listName
     }
 
     // Filter calo hit list
-    CaloHitList caloHitList;
+    CaloHitList caloHitListTrack, caloHitListShower;
 
     for (CaloHitList::const_iterator iter = pCaloHitList->begin(), iterEnd = pCaloHitList->end(); iter != iterEnd; ++iter)
     {
         const CaloHit *const pCaloHit = *iter;
-
+std::cout << "1" << std::endl;
+        const PropertiesMap &properties(pCaloHit->GetPropertiesMap());
+std::cout << "2" << std::endl;
+        const bool isTrack(properties.find("IsTrack") == properties.end() ? false : true);
+        CaloHitList &caloHitList(isTrack ? caloHitListTrack : caloHitListShower);
+std::cout << "isTrack : " << isTrack << std::endl;
+std::cout << "(pCaloHit->GetElectromagneticEnergy() > m_thresholdEnergy) : " << (bool)(pCaloHit->GetElectromagneticEnergy() > m_thresholdEnergy) << std::endl;
+std::cout << "(!m_showOnlyAvailable || PandoraContentApi::IsAvailable(*this, pCaloHit)) : " << (bool)(!m_showOnlyAvailable || PandoraContentApi::IsAvailable(*this, pCaloHit)) << std::endl;
         if ((pCaloHit->GetElectromagneticEnergy() > m_thresholdEnergy) &&
             (!m_showOnlyAvailable || PandoraContentApi::IsAvailable(*this, pCaloHit)))
         {
+std::cout << "Adding hit" << std::endl;
             caloHitList.push_back(pCaloHit);
         }
     }
+std::cout << listName << std::endl;
+std::cout << "pCaloHitList->size() : " << pCaloHitList->size() << std::endl;
+std::cout << "caloHitListTrack.size() : " << caloHitListTrack.size() << std::endl;
+std::cout << "caloHitListShower.size() : " << caloHitListShower.size() << std::endl;
 
+    PANDORA_MONITORING_API(VisualizeCaloHits(this->GetPandora(), &caloHitListTrack, "TrackHits", RED));
+    PANDORA_MONITORING_API(VisualizeCaloHits(this->GetPandora(), &caloHitListShower, "ShowerHits", BLUE));
+// listName.empty() ? "CurrentCaloHits" : listName.c_str(),
+//        (m_hitColors.find("energy") != std::string::npos ? AUTOENERGY : GRAY)));
+/*
     PANDORA_MONITORING_API(VisualizeCaloHits(this->GetPandora(), &caloHitList, listName.empty() ? "CurrentCaloHits" : listName.c_str(),
         (m_hitColors.find("energy") != std::string::npos ? AUTOENERGY : GRAY)));
+*/
 }
 
 //------------------------------------------------------------------------------------------------------------------------------------------
