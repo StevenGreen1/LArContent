@@ -126,7 +126,9 @@
 #include "larpandoracontent/LArVertex/ShowerAsymmetryFeatureTool.h"
 
 #include "larpandoracontent/LArTrackShowerId/CutClusterCharacterisationAlgorithm.h"
+#include "larpandoracontent/LArTrackShowerId/DLClusterCharacterisationAlgorithm.h"
 #include "larpandoracontent/LArTrackShowerId/CutPfoCharacterisationAlgorithm.h"
+#include "larpandoracontent/LArTrackShowerId/DLPfoCharacterisationAlgorithm.h"
 #include "larpandoracontent/LArTrackShowerId/ShowerGrowingAlgorithm.h"
 #include "larpandoracontent/LArTrackShowerId/SvmPfoCharacterisationAlgorithm.h"
 #include "larpandoracontent/LArTrackShowerId/TrackShowerIdFeatureTool.h"
@@ -225,7 +227,9 @@
     d("LArThreeDTrackFragments",                ThreeDTrackFragmentsAlgorithm)                                                  \
     d("LArThreeDTransverseTracks",              ThreeDTransverseTracksAlgorithm)                                                \
     d("LArCutClusterCharacterisation",          CutClusterCharacterisationAlgorithm)                                            \
+    d("LArDLClusterCharacterisation",           DLClusterCharacterisationAlgorithm)                                             \
     d("LArCutPfoCharacterisation",              CutPfoCharacterisationAlgorithm)                                                \
+    d("LArDLPfoCharacterisation",               DLPfoCharacterisationAlgorithm)                                                 \
     d("LArShowerGrowing",                       ShowerGrowingAlgorithm)                                                         \
     d("LArSvmPfoCharacterisation",              SvmPfoCharacterisationAlgorithm)                                                \
     d("LArCrossGapsAssociation",                CrossGapsAssociationAlgorithm)                                                  \
