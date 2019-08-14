@@ -32,7 +32,17 @@ DeepLearningTrackShowerIdAlgorithm::DeepLearningTrackShowerIdAlgorithm() :
 StatusCode DeepLearningTrackShowerIdAlgorithm::Run()
 {
     // Load the model.pt file.
-    std::shared_ptr<torch::jit::script::Module> pModule = torch::jit::load(m_modelFileName);
+    std::shared_ptr<torch::jit::script::Module> pModule(nullptr);
+
+    try
+    {
+        pModule = torch::jit::load(m_modelFileName);
+    }
+    catch (const c10::Error &e)
+    {
+        std::cout << "Error loading the PyTorch module" << std::endl;
+        return STATUS_CODE_FAILURE;
+    }
 
     if (m_visualize)
         PANDORA_MONITORING_API(SetEveDisplayParameters(this->GetPandora(), true, DETECTOR_VIEW_XZ, -1.f, 1.f, 1.f));
@@ -63,7 +73,7 @@ StatusCode DeepLearningTrackShowerIdAlgorithm::Run()
             const int zBin(std::floor((z-m_zMin)*m_nBins/zSpan));
 
             // ATTN: Set pixels containing a calo hit to white
-            if (xBin <= m_nBins && zBin <= m_nBins)
+            if (xBin >= 0 && xBin <= m_nBins && zBin >= 0 && zBin <= m_nBins)
             {
                 caloHitToBinMap.insert(std::make_pair(pCaloHit, std::make_pair(xBin, zBin)));
                 accessor[0][0][xBin][zBin] = 1;
