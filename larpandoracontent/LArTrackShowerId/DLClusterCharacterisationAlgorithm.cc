@@ -26,7 +26,9 @@ bool DLClusterCharacterisationAlgorithm::IsClearTrack(const Cluster *const pClus
         for (CaloHitList::const_iterator hitIter = iter->second->begin(), hitIterEnd = iter->second->end(); hitIter != hitIterEnd; ++hitIter)
         {
             const CaloHit *const pCaloHit = *hitIter;
-            const PropertiesMap &properties(pCaloHit->GetPropertiesMap());
+            // ATTN: Parent calo hit is owned by master algorithm, which has correct metadata
+            const CaloHit *pParentCaloHit(static_cast<const CaloHit *>(pCaloHit->GetParentAddress()));
+            const PropertiesMap &properties(pParentCaloHit->GetPropertiesMap());
             const bool isTrack(properties.find("IsTrack") == properties.end() ? false : true);
 
             if (isTrack)
