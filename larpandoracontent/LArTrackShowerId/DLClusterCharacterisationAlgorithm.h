@@ -18,12 +18,6 @@ namespace lar_content
  */
 class DLClusterCharacterisationAlgorithm : public ClusterCharacterisationBaseAlgorithm
 {
-public:
-    /**
-     *  @brief  Default constructor
-     */
-    DLClusterCharacterisationAlgorithm();
-
 private:
     virtual bool IsClearTrack(const pandora::Cluster *const pCluster) const;
     pandora::StatusCode ReadSettings(const pandora::TiXmlHandle xmlHandle);

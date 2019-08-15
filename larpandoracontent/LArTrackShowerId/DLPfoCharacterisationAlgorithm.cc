@@ -26,7 +26,8 @@ bool DLPfoCharacterisationAlgorithm::IsClearTrack(const Cluster *const pCluster)
         for (CaloHitList::const_iterator hitIter = iter->second->begin(), hitIterEnd = iter->second->end(); hitIter != hitIterEnd; ++hitIter)
         {
             const CaloHit *const pCaloHit = *hitIter;
-            const PropertiesMap &properties(pCaloHit->GetPropertiesMap());
+            const CaloHit *pParentCaloHit(static_cast<const CaloHit *>(pCaloHit->GetParentAddress()));
+            const PropertiesMap &properties(pParentCaloHit->GetPropertiesMap());
             const bool isTrack(properties.find("IsTrack") == properties.end() ? false : true);
 
             if (isTrack)
