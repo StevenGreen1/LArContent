@@ -18,12 +18,6 @@ namespace lar_content
  */
 class DLPfoCharacterisationAlgorithm : public PfoCharacterisationBaseAlgorithm
 {
-public:
-    /**
-     *  @brief  Default constructor
-     */
-    DLPfoCharacterisationAlgorithm();
-
 private:
     bool IsClearTrack(const pandora::Cluster *const pCluster) const;
     bool IsClearTrack(const pandora::ParticleFlowObject *const pPfo) const;
