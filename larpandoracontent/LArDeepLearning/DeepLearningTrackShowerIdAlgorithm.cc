@@ -18,13 +18,18 @@ namespace lar_content
 {
 
 DeepLearningTrackShowerIdAlgorithm::DeepLearningTrackShowerIdAlgorithm() :
-    m_xMin(-700),
-    m_xMax(700),
-    m_zMin(-400),
-    m_zMax(1000),
-    m_nBins(1024),
+    m_xMin(-420),
+    m_zMinU(-350),
+    m_zMinV(0),
+    m_zMinW(-25),
+    m_nBins(512),
     m_visualize(false)
 {
+    const float span(980);
+    m_xMax = m_xMin + span;
+    m_zMaxU = m_zMinU + span;
+    m_zMaxV = m_zMinV + span;
+    m_zMaxW = m_zMinW + span;
 }
 
 //------------------------------------------------------------------------------------------------------------------------------------------
@@ -52,7 +57,17 @@ StatusCode DeepLearningTrackShowerIdAlgorithm::Run()
         const CaloHitList *pCaloHitList(nullptr);
         PANDORA_RETURN_RESULT_IF(STATUS_CODE_SUCCESS, !=, PandoraContentApi::GetList(*this, listName, pCaloHitList));
 
-        const float xSpan(m_xMax - m_xMin), zSpan(m_zMax - m_zMin);
+        const bool isU(pCaloHitList->front()->GetHitType() == TPC_VIEW_U ? true : false);
+        const bool isV(pCaloHitList->front()->GetHitType() == TPC_VIEW_V ? true : false);
+        const bool isW(pCaloHitList->front()->GetHitType() == TPC_VIEW_W ? true : false);
+
+        if (!isU && !isV && !isW)
+            return STATUS_CODE_NOT_ALLOWED;
+
+        const float zMin(isU ? m_zMinU : (isV ? m_zMinV : m_zMinW));
+        const float zMax(isU ? m_zMaxU : (isV ? m_zMaxV : m_zMaxW));
+
+        const float xSpan(m_xMax - m_xMin), zSpan(zMax - zMin);
 
         typedef std::map<const CaloHit*, std::pair<int, int>> CaloHitToBinMap;
         CaloHitToBinMap caloHitToBinMap;
@@ -70,7 +85,7 @@ StatusCode DeepLearningTrackShowerIdAlgorithm::Run()
             const float z(pCaloHit->GetPositionVector().GetZ());
 
             const int xBin(std::floor((x-m_xMin)*m_nBins/xSpan));
-            const int zBin(std::floor((z-m_zMin)*m_nBins/zSpan));
+            const int zBin(std::floor((z-zMin)*m_nBins/zSpan));
 
             // ATTN: Set pixels containing a calo hit to white
             if (xBin >= 0 && xBin <= m_nBins && zBin >= 0 && zBin <= m_nBins)
@@ -105,17 +120,17 @@ StatusCode DeepLearningTrackShowerIdAlgorithm::Run()
             const int zBin(caloHitToBinMap.at(pCaloHit).second);
 
             // Is the R value bigger than the B value.  In training the target picture was coloured such that showers were red and tracks blue
-            const bool isTrack(outputAccessor[0][0][xBin][zBin] > outputAccessor[0][2][xBin][zBin] ? false : true);
+            const bool isShower(outputAccessor[0][0][xBin][zBin] > outputAccessor[0][2][xBin][zBin] ? false : true);
             object_creation::CaloHit::Metadata metadata;
 
-            if (isTrack)
+            if (isShower)
             {
                 trackHits.push_back(pCaloHit);
-                metadata.m_propertiesToAdd["IsTrack"] = 1.f;
+                metadata.m_propertiesToAdd["IsShower"] = 1.f;
             }
             else
             {
-                metadata.m_propertiesToAdd["IsShower"] = 1.f;
+                metadata.m_propertiesToAdd["IsTrack"] = 1.f;
                 showerHits.push_back(pCaloHit);
             }
 
@@ -161,10 +176,22 @@ StatusCode DeepLearningTrackShowerIdAlgorithm::ReadSettings(const TiXmlHandle xm
         "ImageXMax", m_xMax));
 
     PANDORA_RETURN_RESULT_IF_AND_IF(STATUS_CODE_SUCCESS, STATUS_CODE_NOT_FOUND, !=, XmlHelper::ReadValue(xmlHandle,
-        "ImageZMin", m_zMin));
+        "ImageZMinU", m_zMinU));
 
     PANDORA_RETURN_RESULT_IF_AND_IF(STATUS_CODE_SUCCESS, STATUS_CODE_NOT_FOUND, !=, XmlHelper::ReadValue(xmlHandle,
-        "ImageZMax", m_zMax));
+        "ImageZMaxU", m_zMaxU));
+
+    PANDORA_RETURN_RESULT_IF_AND_IF(STATUS_CODE_SUCCESS, STATUS_CODE_NOT_FOUND, !=, XmlHelper::ReadValue(xmlHandle,
+        "ImageZMinV", m_zMinV));
+
+    PANDORA_RETURN_RESULT_IF_AND_IF(STATUS_CODE_SUCCESS, STATUS_CODE_NOT_FOUND, !=, XmlHelper::ReadValue(xmlHandle,
+        "ImageZMaxV", m_zMaxV));
+
+    PANDORA_RETURN_RESULT_IF_AND_IF(STATUS_CODE_SUCCESS, STATUS_CODE_NOT_FOUND, !=, XmlHelper::ReadValue(xmlHandle,
+        "ImageZMinW", m_zMinW));
+
+    PANDORA_RETURN_RESULT_IF_AND_IF(STATUS_CODE_SUCCESS, STATUS_CODE_NOT_FOUND, !=, XmlHelper::ReadValue(xmlHandle,
+        "ImageZMaxW", m_zMaxW));
 
     PANDORA_RETURN_RESULT_IF_AND_IF(STATUS_CODE_SUCCESS, STATUS_CODE_NOT_FOUND, !=, XmlHelper::ReadValue(xmlHandle,
         "NumberOfBins", m_nBins));
