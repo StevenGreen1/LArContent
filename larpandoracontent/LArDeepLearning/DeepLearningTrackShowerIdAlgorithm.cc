@@ -120,18 +120,18 @@ StatusCode DeepLearningTrackShowerIdAlgorithm::Run()
             const int zBin(caloHitToBinMap.at(pCaloHit).second);
 
             // Is the R value bigger than the B value.  In training the target picture was coloured such that showers were red and tracks blue
-            const bool isShower(outputAccessor[0][0][xBin][zBin] > outputAccessor[0][2][xBin][zBin] ? false : true);
+            const bool isShower(outputAccessor[0][0][xBin][zBin] > outputAccessor[0][2][xBin][zBin] ? true : false);
             object_creation::CaloHit::Metadata metadata;
 
             if (isShower)
             {
-                trackHits.push_back(pCaloHit);
                 metadata.m_propertiesToAdd["IsShower"] = 1.f;
+                showerHits.push_back(pCaloHit);
             }
             else
             {
                 metadata.m_propertiesToAdd["IsTrack"] = 1.f;
-                showerHits.push_back(pCaloHit);
+                trackHits.push_back(pCaloHit);
             }
 
             const StatusCode &statusCode(PandoraContentApi::CaloHit::AlterMetadata(*this, pCaloHit, metadata));
