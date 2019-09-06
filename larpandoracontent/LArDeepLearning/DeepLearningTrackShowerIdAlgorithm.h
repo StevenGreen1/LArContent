@@ -40,6 +40,8 @@ private:
     float                     m_zMaxW;               ///< Max Z used in training model in W view
     int                       m_nBins;               ///< Number of bins used in training model (assumption is same number in X and Z)
     bool                      m_visualize;           ///< Whether to visualize the track shower ID scores
+    bool                      m_useTrainingMode;     ///< Training mode
+    std::string               m_trainingOutputFile;  ///< Output file name for training examples
 };
 
 } // namespace lar_content
