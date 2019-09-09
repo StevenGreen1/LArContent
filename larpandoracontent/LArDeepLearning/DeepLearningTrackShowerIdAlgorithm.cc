@@ -161,7 +161,7 @@ StatusCode DeepLearningTrackShowerIdAlgorithm::Run()
         auto outputAccessor = output.accessor<float, 4>();
 
         // Colour in the shower and track bits (and other) in a visual display for first performance inspection
-        CaloHitList showerHits, trackHits, other;
+        CaloHitList haloBeamHits, triggeredBeamHits, cosmicHits;
 
         for (const CaloHit *pCaloHit : *pCaloHitList)
         {
@@ -175,18 +175,30 @@ StatusCode DeepLearningTrackShowerIdAlgorithm::Run()
             const int zBin(caloHitToBinMap.at(pCaloHit).second);
 
             // Is the R value bigger than the B value.  In training the target picture was coloured such that showers were red and tracks blue
-            const bool isShower(outputAccessor[0][0][xBin][zBin] > outputAccessor[0][2][xBin][zBin] ? true : false);
+            const float red(outputAccessor[0][0][xBin][zBin]);
+            const float green(outputAccessor[0][1][xBin][zBin]);
+            const float blue(outputAccessor[0][2][xBin][zBin]);
+
+            const bool isTriggeredBeam(green > red && green > blue);
+            const bool isHaloBeam(blue > green && blue > red);
+            const bool isCosmicRay(red > green && red > blue);
+
             object_creation::CaloHit::Metadata metadata;
 
-            if (isShower)
+            if (isTriggeredBeam)
             {
-                metadata.m_propertiesToAdd["IsShower"] = 1.f;
-                showerHits.push_back(pCaloHit);
+                triggeredBeamHits.push_back(pCaloHit);
+                metadata.m_propertiesToAdd["IsTriggeredBeam"] = 1.f;
+            }
+            else if (isHaloBeam)
+            {
+                haloBeamHits.push_back(pCaloHit);
+                metadata.m_propertiesToAdd["IsBeamHalo"] = 1.f;
             }
             else
             {
-                metadata.m_propertiesToAdd["IsTrack"] = 1.f;
-                trackHits.push_back(pCaloHit);
+                cosmicHits.push_back(pCaloHit);
+                metadata.m_propertiesToAdd["IsCosmicRay"] = 1.f;
             }
 
             const StatusCode &statusCode(PandoraContentApi::CaloHit::AlterMetadata(*this, pCaloHit, metadata));
@@ -197,12 +209,12 @@ StatusCode DeepLearningTrackShowerIdAlgorithm::Run()
 
         if (m_visualize)
         {
-            const std::string trackListName("TrackHits_" + listName);
-            const std::string showerListName("ShowerHits_" + listName);
-            const std::string otherListName("OtherHits_" + listName);
-            PANDORA_MONITORING_API(VisualizeCaloHits(this->GetPandora(), &trackHits, trackListName, BLUE));
-            PANDORA_MONITORING_API(VisualizeCaloHits(this->GetPandora(), &showerHits, showerListName, RED));
-            PANDORA_MONITORING_API(VisualizeCaloHits(this->GetPandora(), &other, otherListName, BLACK));
+            const std::string triggeredBeamListName("TriggeredBeamHits_" + listName);
+            const std::string haloBeamListName("HaloBeamHits_" + listName);
+            const std::string cosmicListName("CosmicHits_" + listName);
+            PANDORA_MONITORING_API(VisualizeCaloHits(this->GetPandora(), &triggeredBeamHits, triggeredBeamListName, GREEN));
+            PANDORA_MONITORING_API(VisualizeCaloHits(this->GetPandora(), &haloBeamHits, haloBeamListName, BLUE));
+            PANDORA_MONITORING_API(VisualizeCaloHits(this->GetPandora(), &cosmicHits, cosmicListName, RED));
         }
     }
 
