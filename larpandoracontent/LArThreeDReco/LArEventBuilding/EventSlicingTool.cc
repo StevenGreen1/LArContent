@@ -287,8 +287,9 @@ bool EventSlicingTool::PassProximity(const Cluster *const pClusterInSlice, const
 bool EventSlicingTool::PassShowerCone(const Cluster *const pConeCluster, const Cluster *const pNearbyCluster, const ThreeDSlidingConeFitResultMap &showerConeFitResults) const
 {
     ThreeDSlidingConeFitResultMap::const_iterator fitIter = showerConeFitResults.find(pConeCluster);
+    ThreeDSlidingConeFitResultMap::const_iterator nearbyFitIter = showerConeFitResults.find(pNearbyCluster);
 
-    if (showerConeFitResults.end() == fitIter)
+    if (showerConeFitResults.end() == fitIter || showerConeFitResults.end() == nearbyFitIter)
         return false;
 
     float clusterLength(0.f);
