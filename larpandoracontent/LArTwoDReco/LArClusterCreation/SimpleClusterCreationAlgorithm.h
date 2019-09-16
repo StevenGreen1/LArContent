@@ -70,6 +70,7 @@ private:
     pandora::StatusCode ReadSettings(const pandora::TiXmlHandle xmlHandle);
 
     float   m_clusteringWindowSquared;      ///< Maximum distance (squared) for two hits to be joined
+    bool    m_deepLearningShowerMode;       ///< Only consider hits identified as shower like by deep learning
 };
 
 } // namespace lar_content

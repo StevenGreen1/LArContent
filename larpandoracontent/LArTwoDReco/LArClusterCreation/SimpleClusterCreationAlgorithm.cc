@@ -18,7 +18,8 @@ namespace lar_content
 {
 
 SimpleClusterCreationAlgorithm::SimpleClusterCreationAlgorithm() :
-    m_clusteringWindowSquared(1.f)
+    m_clusteringWindowSquared(1.f),
+    m_deepLearningShowerMode(false)
 {
 }
 
@@ -53,7 +54,22 @@ void SimpleClusterCreationAlgorithm::SelectCaloHits(const CaloHitList *const pIn
     for (const CaloHit *const pCaloHit : *pInputList)
     {
         if (PandoraContentApi::IsAvailable(*this, pCaloHit))
-            outputList.push_back(pCaloHit);
+        {
+            if (m_deepLearningShowerMode)
+            {
+                // ATTN: Parent calo hit is owned by master algorithm, which has correct metadata
+                const CaloHit *pParentCaloHit(static_cast<const CaloHit *>(pCaloHit->GetParentAddress()));
+                const PropertiesMap &properties(pParentCaloHit->GetPropertiesMap());
+                const bool isTrack(properties.find("IsTrack") == properties.end() ? false : true);
+
+                if (!isTrack)
+                    outputList.push_back(pCaloHit);
+            }
+            else
+            {
+                outputList.push_back(pCaloHit);
+            }
+        }
     }
 }
 
@@ -150,6 +166,9 @@ StatusCode SimpleClusterCreationAlgorithm::ReadSettings(const TiXmlHandle xmlHan
     PANDORA_RETURN_RESULT_IF_AND_IF(STATUS_CODE_SUCCESS, STATUS_CODE_NOT_FOUND, !=, XmlHelper::ReadValue(xmlHandle,
         "ClusteringWindow", clusteringWindow));
     m_clusteringWindowSquared = clusteringWindow * clusteringWindow;
+
+    PANDORA_RETURN_RESULT_IF_AND_IF(STATUS_CODE_SUCCESS, STATUS_CODE_NOT_FOUND, !=, XmlHelper::ReadValue(xmlHandle,
+        "DeepLearningShowerMode", m_deepLearningShowerMode));
 
     return STATUS_CODE_SUCCESS;
 }
