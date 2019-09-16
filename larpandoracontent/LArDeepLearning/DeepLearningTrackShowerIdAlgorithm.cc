@@ -161,7 +161,7 @@ StatusCode DeepLearningTrackShowerIdAlgorithm::Run()
         auto outputAccessor = output.accessor<float, 4>();
 
         // Colour in the shower and track bits (and other) in a visual display for first performance inspection
-        CaloHitList haloBeamHits, triggeredBeamHits, cosmicHits;
+        CaloHitList haloBeamHits, triggeredBeamHits, cosmicHits, other;
 
         for (const CaloHit *pCaloHit : *pCaloHitList)
         {
@@ -181,7 +181,7 @@ StatusCode DeepLearningTrackShowerIdAlgorithm::Run()
 
             const bool isTriggeredBeam(green > red && green > blue);
             const bool isHaloBeam(blue > green && blue > red);
-            const bool isCosmicRay(red > green && red > blue);
+//            const bool isCosmicRay(red > green && red > blue);
 
             object_creation::CaloHit::Metadata metadata;
 
